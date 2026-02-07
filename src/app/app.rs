@@ -51,6 +51,8 @@ pub struct PartyApp {
     pub loading_since: Option<std::time::Instant>,
     #[allow(dead_code)]
     pub task: Option<std::thread::JoinHandle<()>>,
+    
+    pub selected_priority_profile: usize,
 }
 
 macro_rules! cur_handler {
@@ -91,6 +93,7 @@ impl PartyApp {
             loading_msg: None,
             loading_since: None,
             task: None,
+            selected_priority_profile: 0,
         };
 
         if app.options.check_for_updates {
@@ -304,10 +307,16 @@ impl PartyApp {
                             }
                         }
                         None => {
+                            let profselection = if self.options.auto_assign_profiles {
+                                self.get_next_profile_from_priority()
+                            } else {
+                                0
+                            };
+                            
                             self.instances.push(Instance {
                                 devices: vec![i],
                                 profname: String::new(),
-                                profselection: 0,
+                                profselection,
                                 monitor: 0,
                                 width: 0,
                                 height: 0,
@@ -340,6 +349,24 @@ impl PartyApp {
             }
             i += 1;
         }
+    }
+
+    fn get_next_profile_from_priority(&self) -> usize {
+        // Count how many instances already exist (excluding current one being created)
+        let instance_count = self.instances.len();
+        
+        // If we have a profile in the priority list for this instance number, use it
+        if instance_count < self.options.profile_priority_list.len() {
+            let profile_name = &self.options.profile_priority_list[instance_count];
+            // Find the profile in the profiles list
+            // Note: self.profiles[0] is "Guest" when scan_profiles(true) is used
+            if let Some(pos) = self.profiles.iter().position(|p| p == profile_name) {
+                return pos;
+            }
+        }
+        
+        // If we run out of priority profiles or can't find it, default to Guest
+        0
     }
 
     fn is_device_in_any_instance(&self, dev: usize) -> bool {

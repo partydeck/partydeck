@@ -48,6 +48,10 @@ pub struct PartyConfig {
     pub disable_mount_gamedirs: bool,
     #[serde(default)]
     pub check_for_updates: bool,
+    #[serde(default)]
+    pub auto_assign_profiles: bool,
+    #[serde(default)]
+    pub profile_priority_list: Vec<String>,
 }
 
 impl Default for PartyConfig {
@@ -66,7 +70,13 @@ impl Default for PartyConfig {
             allow_multiple_instances_on_same_device: false,
             profile_unique_dirs: true,
             disable_mount_gamedirs: false,
+<<<<<<< HEAD
             check_for_updates: true,
+||||||| parent of d776daa (Add settings for auto selecting profiles, and allow prioritizing)
+=======
+            auto_assign_profiles: false,
+            profile_priority_list: Vec::new(),
+>>>>>>> d776daa (Add settings for auto selecting profiles, and allow prioritizing)
         }
     }
 }

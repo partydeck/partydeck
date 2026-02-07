@@ -551,6 +551,68 @@ impl PartyApp {
             self.infotext = "DEFAULT: Enabled\n\nGives each profile their own data directories. For Windows games, this is the C:\\Users\\steamuser folder, for Linux native games this is the HOME directory. Note that disabling this means that PartyDeck instances may potentially modify your game's actual save data on disk.".to_string();
         }
 
+        ui.separator();
+
+        let auto_assign_profiles_check = ui.checkbox(
+            &mut self.options.auto_assign_profiles,
+            "Automatically assign profiles",
+        );
+        if auto_assign_profiles_check.hovered() {
+            self.infotext = "DEFAULT: Disabled\n\nAutomatically assign profiles to instances based on the priority list below. When creating instances, profiles will be assigned in order from the priority list. If the list is exhausted, guest profiles will be used.".to_string();
+        }
+
+        if self.options.auto_assign_profiles {
+            ui.label("Profile Priority List (drag to reorder):");
+            
+            let available_profiles = scan_profiles(false);
+            let mut to_remove = None;
+            let mut to_move = None;
+
+            for (i, profile_name) in self.options.profile_priority_list.iter().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.label(format!("{}.", i + 1));
+                    ui.label(profile_name);
+                    if ui.button("Remove").clicked() {
+                        to_remove = Some(i);
+                    }
+                    if i > 0 && ui.button("↑").clicked() {
+                        to_move = Some((i, i - 1));
+                    }
+                    if i < self.options.profile_priority_list.len() - 1 && ui.button("↓").clicked() {
+                        to_move = Some((i, i + 1));
+                    }
+                });
+            }
+
+            if let Some(i) = to_remove {
+                self.options.profile_priority_list.remove(i);
+            }
+
+            if let Some((from, to)) = to_move {
+                self.options.profile_priority_list.swap(from, to);
+            }
+
+            ui.horizontal(|ui| {
+                ui.label("Add profile:");
+                egui::ComboBox::from_id_salt("add_priority_profile")
+                    .width(200.0)
+                    .show_index(
+                        ui,
+                        &mut self.selected_priority_profile,
+                        available_profiles.len(),
+                        |i| available_profiles[i].clone(),
+                    );
+                if ui.button("Add").clicked() && self.selected_priority_profile < available_profiles.len() {
+                    let profile = available_profiles[self.selected_priority_profile].clone();
+                    if !self.options.profile_priority_list.contains(&profile) {
+                        self.options.profile_priority_list.push(profile);
+                    }
+                }
+            });
+        }
+
+        ui.separator();
+
         let allow_multiple_instances_on_same_device_check = ui.checkbox(
             &mut self.options.allow_multiple_instances_on_same_device,
             "(Debug) Allow multiple instances from one gamepad",

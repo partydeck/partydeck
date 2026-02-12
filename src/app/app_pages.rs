@@ -65,8 +65,12 @@ impl PartyApp {
         });
         ui.separator();
 
+        // Reserve space for buttons at the bottom
+        let bottom_button_height = 50.0;
+        let available_height = ui.available_height() - bottom_button_height;
+
         egui::ScrollArea::vertical()
-            .max_height(ui.available_height() - 30.0) // Remove lower menue height from avaliable
+            .max_height(available_height)
             .auto_shrink(false)
             .show(ui, |ui| {
                 match self.settings_page {
@@ -74,8 +78,7 @@ impl PartyApp {
                     SettingsPage::Proton => self.display_settings_proton(ui),
                     SettingsPage::Gamescope => self.display_settings_gamescope(ui),
                 }
-        });
-
+            });
 
         ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
             ui.horizontal(|ui| {
@@ -562,34 +565,58 @@ impl PartyApp {
         }
 
         if self.options.auto_assign_profiles {
-            ui.label("Profile Priority List (drag to reorder):");
+            ui.label("Profile Priority List:");
             
             let available_profiles = scan_profiles(false);
             let mut to_remove = None;
-            let mut to_move = None;
+            let mut to_move_up = None;
+            let mut to_move_down = None;
 
             for (i, profile_name) in self.options.profile_priority_list.iter().enumerate() {
                 ui.horizontal(|ui| {
                     ui.label(format!("{}.", i + 1));
                     ui.label(profile_name);
-                    if ui.button("Remove").clicked() {
-                        to_remove = Some(i);
-                    }
-                    if i > 0 && ui.button("↑").clicked() {
-                        to_move = Some((i, i - 1));
-                    }
-                    if i < self.options.profile_priority_list.len() - 1 && ui.button("↓").clicked() {
-                        to_move = Some((i, i + 1));
-                    }
+                    
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("✖").clicked() {
+                            to_remove = Some(i);
+                        }
+                        
+                        // Down button (disabled if last item)
+                        if i < self.options.profile_priority_list.len() - 1 {
+                            if ui.add(egui::ImageButton::new(egui::include_image!("../../res/ARROW_DOWN.png")).frame(false)).clicked() {
+                                to_move_down = Some(i);
+                            }
+                        } else {
+                            ui.add_enabled(false, egui::ImageButton::new(egui::include_image!("../../res/ARROW_DOWN.png")).frame(false));
+                        }
+                        
+                        // Up button (disabled if first item)
+                        if i > 0 {
+                            if ui.add(egui::ImageButton::new(egui::include_image!("../../res/ARROW_UP.png")).frame(false)).clicked() {
+                                to_move_up = Some(i);
+                            }
+                        } else {
+                            ui.add_enabled(false, egui::ImageButton::new(egui::include_image!("../../res/ARROW_UP.png")).frame(false));
+                        }
+                    });
                 });
             }
 
             if let Some(i) = to_remove {
                 self.options.profile_priority_list.remove(i);
             }
-
-            if let Some((from, to)) = to_move {
-                self.options.profile_priority_list.swap(from, to);
+            
+            if let Some(i) = to_move_up {
+                if i > 0 {
+                    self.options.profile_priority_list.swap(i, i - 1);
+                }
+            }
+            
+            if let Some(i) = to_move_down {
+                if i < self.options.profile_priority_list.len() - 1 {
+                    self.options.profile_priority_list.swap(i, i + 1);
+                }
             }
 
             ui.horizontal(|ui| {

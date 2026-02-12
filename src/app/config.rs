@@ -70,13 +70,9 @@ impl Default for PartyConfig {
             allow_multiple_instances_on_same_device: false,
             profile_unique_dirs: true,
             disable_mount_gamedirs: false,
-<<<<<<< HEAD
             check_for_updates: true,
-||||||| parent of d776daa (Add settings for auto selecting profiles, and allow prioritizing)
-=======
             auto_assign_profiles: false,
             profile_priority_list: Vec::new(),
->>>>>>> d776daa (Add settings for auto selecting profiles, and allow prioritizing)
         }
     }
 }

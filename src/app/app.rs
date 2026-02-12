@@ -352,20 +352,15 @@ impl PartyApp {
     }
 
     fn get_next_profile_from_priority(&self) -> usize {
-        // Count how many instances already exist (excluding current one being created)
         let instance_count = self.instances.len();
         
-        // If we have a profile in the priority list for this instance number, use it
         if instance_count < self.options.profile_priority_list.len() {
             let profile_name = &self.options.profile_priority_list[instance_count];
-            // Find the profile in the profiles list
-            // Note: self.profiles[0] is "Guest" when scan_profiles(true) is used
             if let Some(pos) = self.profiles.iter().position(|p| p == profile_name) {
                 return pos;
             }
         }
         
-        // If we run out of priority profiles or can't find it, default to Guest
         0
     }
 

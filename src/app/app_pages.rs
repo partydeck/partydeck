@@ -619,21 +619,41 @@ impl PartyApp {
                 }
             }
 
+            // Filter out profiles that are already in the priority list
+            let available_to_add: Vec<String> = available_profiles
+                .into_iter()
+                .filter(|p| !self.options.profile_priority_list.contains(p))
+                .collect();
+            
             ui.horizontal(|ui| {
                 ui.label("Add profile:");
-                egui::ComboBox::from_id_salt("add_priority_profile")
-                    .width(200.0)
-                    .show_index(
-                        ui,
-                        &mut self.selected_priority_profile,
-                        available_profiles.len(),
-                        |i| available_profiles[i].clone(),
-                    );
-                if ui.button("Add").clicked() && self.selected_priority_profile < available_profiles.len() {
-                    let profile = available_profiles[self.selected_priority_profile].clone();
-                    if !self.options.profile_priority_list.contains(&profile) {
-                        self.options.profile_priority_list.push(profile);
-                    }
+                
+                // Reset selection if current index is out of bounds
+                if self.selected_priority_profile >= available_to_add.len() {
+                    self.selected_priority_profile = 0;
+                }
+                
+                let dropdown_enabled = !available_to_add.is_empty();
+                ui.add_enabled_ui(dropdown_enabled, |ui| {
+                    egui::ComboBox::from_id_salt("add_priority_profile")
+                        .width(200.0)
+                        .show_index(
+                            ui,
+                            &mut self.selected_priority_profile,
+                            available_to_add.len(),
+                            |i| if i < available_to_add.len() {
+                                available_to_add[i].clone()
+                            } else {
+                                String::from("No profiles available")
+                            },
+                        );
+                });
+                
+                let can_add = dropdown_enabled && self.selected_priority_profile < available_to_add.len();
+                if ui.add_enabled(can_add, egui::Button::new("Add")).clicked() {
+                    let profile = available_to_add[self.selected_priority_profile].clone();
+                    self.options.profile_priority_list.push(profile);
+                    self.selected_priority_profile = 0;
                 }
             });
         }

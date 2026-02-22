@@ -269,7 +269,7 @@ impl PartyApp {
                 ui.radio_value(&mut h.runtime, "steamrt4".to_string(), "4.0 (steamrt4)");
             });
         }
-        
+
         if h.spec_ver != HANDLER_SPEC_CURRENT_VERSION {
             if ui.button("Update Handler Specification Version").clicked() {
                 h.spec_ver = HANDLER_SPEC_CURRENT_VERSION;
@@ -545,7 +545,7 @@ impl PartyApp {
                 self.input_devices = scan_input_devices(&self.options.pad_filter_type);
             }
         });
-        
+
         let profile_unique_dirs_check = ui.checkbox(
             &mut self.options.profile_unique_dirs,
             "Unique per-profile environments",
@@ -566,7 +566,7 @@ impl PartyApp {
 
         if self.options.auto_assign_profiles {
             ui.label("Profile Priority List:");
-            
+
             let available_profiles = scan_profiles(false);
             let mut to_remove = None;
             let mut to_move_up = None;
@@ -576,12 +576,12 @@ impl PartyApp {
                 ui.horizontal(|ui| {
                     ui.label(format!("{}.", i + 1));
                     ui.label(profile_name);
-                    
+
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("✖").clicked() {
                             to_remove = Some(i);
                         }
-                        
+
                         // Down button (disabled if last item)
                         if i < self.options.profile_priority_list.len() - 1 {
                             if ui.add(egui::ImageButton::new(egui::include_image!("../../res/ARROW_DOWN.png")).frame(false)).clicked() {
@@ -590,7 +590,7 @@ impl PartyApp {
                         } else {
                             ui.add_enabled(false, egui::ImageButton::new(egui::include_image!("../../res/ARROW_DOWN.png")).frame(false));
                         }
-                        
+
                         // Up button (disabled if first item)
                         if i > 0 {
                             if ui.add(egui::ImageButton::new(egui::include_image!("../../res/ARROW_UP.png")).frame(false)).clicked() {
@@ -606,13 +606,13 @@ impl PartyApp {
             if let Some(i) = to_remove {
                 self.options.profile_priority_list.remove(i);
             }
-            
+
             if let Some(i) = to_move_up {
                 if i > 0 {
                     self.options.profile_priority_list.swap(i, i - 1);
                 }
             }
-            
+
             if let Some(i) = to_move_down {
                 if i < self.options.profile_priority_list.len() - 1 {
                     self.options.profile_priority_list.swap(i, i + 1);
@@ -624,15 +624,15 @@ impl PartyApp {
                 .into_iter()
                 .filter(|p| !self.options.profile_priority_list.contains(p))
                 .collect();
-            
+
             ui.horizontal(|ui| {
                 ui.label("Add profile:");
-                
+
                 // Reset selection if current index is out of bounds
                 if self.selected_priority_profile >= available_to_add.len() {
                     self.selected_priority_profile = 0;
                 }
-                
+
                 let dropdown_enabled = !available_to_add.is_empty();
                 ui.add_enabled_ui(dropdown_enabled, |ui| {
                     egui::ComboBox::from_id_salt("add_priority_profile")
@@ -648,7 +648,7 @@ impl PartyApp {
                             },
                         );
                 });
-                
+
                 let can_add = dropdown_enabled && self.selected_priority_profile < available_to_add.len();
                 if ui.add_enabled(can_add, egui::Button::new("Add")).clicked() {
                     let profile = available_to_add[self.selected_priority_profile].clone();
@@ -707,7 +707,7 @@ impl PartyApp {
         if proton_separate_pfxs_check.hovered() {
             self.infotext = "DEFAULT: Enabled\n\nRuns each instance in separate Proton prefixes. If unsure, leave this checked. Multiple prefixes takes up more disk space, but generally provides better compatibility and fewer issues with Proton-based games.".to_string();
         }
-        
+
         let proton_wow64_check = ui.checkbox(
             &mut self.options.proton_wow64,
             "Run Proton in WoW64 mode",
@@ -715,7 +715,7 @@ impl PartyApp {
         if proton_wow64_check.hovered() {
             self.infotext = "DEFAULT: Enabled\n\nRuns Proton games in the new Wine WoW64 mode. If unsure, leave this checked.".to_string();
         }
-        
+
         if ui.button("Erase All Proton Prefix Data").clicked() {
             if yesno(
                 "Erase Prefix?",
@@ -730,7 +730,7 @@ impl PartyApp {
             }
         }
     }
-    
+
     pub fn display_settings_gamescope(&mut self, ui: &mut Ui) {
         let gamescope_lowres_fix_check = ui.checkbox(
             &mut self.options.gamescope_fix_lowres,

@@ -20,7 +20,7 @@ fn main() -> eframe::Result {
         println!("{}", USAGE_TEXT);
         std::process::exit(0);
     }
-    
+
     let monitors = get_monitors_errorless();
 
     println!("[partydeck] Monitors detected:");

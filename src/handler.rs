@@ -139,7 +139,7 @@ impl Handler {
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or_default();
-        
+
         let lowercase_extension = extension.to_ascii_lowercase();
         lowercase_extension == "exe" || lowercase_extension == "bat" || lowercase_extension == "cmd"
     }

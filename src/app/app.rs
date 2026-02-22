@@ -51,7 +51,7 @@ pub struct PartyApp {
     pub loading_since: Option<std::time::Instant>,
     #[allow(dead_code)]
     pub task: Option<std::thread::JoinHandle<()>>,
-    
+
     pub selected_priority_profile: usize,
 }
 
@@ -312,7 +312,7 @@ impl PartyApp {
                             } else {
                                 0
                             };
-                            
+
                             self.instances.push(Instance {
                                 devices: vec![i],
                                 profname: String::new(),
@@ -353,14 +353,14 @@ impl PartyApp {
 
     fn get_next_profile_from_priority(&self) -> usize {
         let instance_count = self.instances.len();
-        
+
         if instance_count < self.options.profile_priority_list.len() {
             let profile_name = &self.options.profile_priority_list[instance_count];
             if let Some(pos) = self.profiles.iter().position(|p| p == profile_name) {
                 return pos;
             }
         }
-        
+
         0
     }
 

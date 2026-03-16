@@ -71,7 +71,7 @@ Then build with:
 cargo build --release
 ```
 
-By default, the build script downloads the latest releases of Goldberg Steam Emu and UMU Launcher from GitHub. The output binary and bundled dependencies are placed in `target/release/`.
+If built with download deps, the build script downloads the latest releases of Goldberg Steam Emu and UMU Launcher from GitHub. The output binary and bundled dependencies are placed in `target/release/`.
 
 ### Build feature flags
 

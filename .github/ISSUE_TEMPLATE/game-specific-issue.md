@@ -3,7 +3,9 @@ name: Game-specific issue
 about: Report an issue specific to one game
 title: "[Game issue] (GAME NAME): (SHORT DESCRIPTION OF PROBLEM)"
 labels: bug, handler
-assignees: davidawesome02-backup Blahkaey
+assignees: 
+  - davidawesome02-backup
+  - Blahkaey
 
 ---
 

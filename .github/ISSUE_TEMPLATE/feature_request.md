@@ -3,7 +3,9 @@ name: Feature request
 about: Suggest an idea for this project
 title: "[Feature request] "
 labels: enhancement
-assignees: davidawesome02-backup Blahkaey
+assignees: 
+  - davidawesome02-backup
+  - Blahkaey
 
 ---
 

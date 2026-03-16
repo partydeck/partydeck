@@ -44,6 +44,8 @@ pub struct Handler {
 
     pub pause_between_starts: Option<f64>,
 
+    #[serde(default)]
+    pub use_mangohud: bool,
     pub use_goldberg: bool,
     pub steam_appid: Option<u32>,
 
@@ -71,6 +73,7 @@ impl Default for Handler {
 
             pause_between_starts: None,
 
+            use_mangohud: false,
             use_goldberg: false,
             steam_appid: None,
 

@@ -4,7 +4,9 @@ about: Report a bug in the launcher or an issue that affects all games played th
   PartyDeck
 title: "[Bug] "
 labels: bug
-assignees: davidawesome02-backup Blahkaey
+assignees: 
+  - davidawesome02-backup
+  - Blahkaey
 
 ---
 

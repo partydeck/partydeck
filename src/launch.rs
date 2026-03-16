@@ -172,6 +172,9 @@ pub fn launch_cmds(
         }
 
         // Gamescope args
+        if h.use_mangohud {
+            cmd.arg("--mangoapp");
+        }
         cmd.args([
             "-W",
             &instance.width.to_string(),

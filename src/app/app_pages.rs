@@ -198,6 +198,7 @@ impl PartyApp {
                 );
 
             ui.checkbox(&mut h.use_goldberg, "Emulate Steam Client");
+            ui.checkbox(&mut h.use_mangohud, "Enable MangoHud");
         });
 
         h.steam_appid = match &self.installed_steamapps[selected_index] {

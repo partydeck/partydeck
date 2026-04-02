@@ -2714,7 +2714,6 @@ dependencies = [
  "sha2",
  "steamlocate",
  "tar",
- "walkdir",
  "wayland-backend",
  "wayland-client",
  "wayland-scanner",

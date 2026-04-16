@@ -14,7 +14,7 @@ use nix::sys::wait::{WaitStatus, waitpid};
 use nix::unistd::Pid;
 use std::collections::HashSet;
 
-use crate::layout_manager::kwin_dbus_start_script;
+use crate::layout_manager::{kwin_dbus_start_script,spawn_comp_and_get_display};
 
 pub fn setup_profiles(
     h: &Handler,

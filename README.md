@@ -119,6 +119,7 @@ PartyDeck uses a few software layers to provide a console-like split-screen gami
 - [@wunnr](https://github.com/wunnr) for starting partydeck
 - [@Blahkaey](https://github.com/blahkaey) for helping to maintain partydeck and the comunity
 - [@davidawesome02-backup](https://github.com/davidawesome02-backup) for the [Gamescope keyboard/mouse fork](https://github.com/davidawesome02-backup/gamescope), and Valve for Gamescope
+- [@Twig6943](https://github.com/Twig6943) for work on AppImage packaging
 - [@blckink](https://github.com/blckink) for contributions
 - MrGoldberg & Detanup01 for [Goldberg Steam Emu](https://github.com/Detanup01/gbe_fork/)
 - GloriousEggroll and the rest of the contributors for [UMU Launcher](https://github.com/Open-Wine-Components/umu-launcher)

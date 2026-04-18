@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, path::PathBuf};
 use std::path::Path;
 
 #[cfg(all(not(feature = "download_deps_latest"), feature = "download_deps"))]
@@ -72,11 +72,6 @@ const BUNDLE: &[(&str, &str)] = &[
     ("res/splitscreen_kwin_vertical.js", "res/splitscreen_kwin_vertical.js"),
 ];
 
-const BUNDLE_OPTIONAL: &[(&str, &str)] = &[
-    ("deps/gamescope/build-gcc/src/gamescope", "bin/gamescope-kbm"),
-    ("deps/gamescope/build-gcc/src/gamescopereaper", "bin/gamescopereaper"),
-];
-
 
 macro_rules! build_println {
     ($($arg:tt)*) => {
@@ -108,12 +103,13 @@ fn main() {
         });
     }
 
-    #[cfg(feature = "build_gamescope")]
-    build_gamescope(&deps_dir);
-
     // cargo puts OUT_DIR a few levels deep, walk up to the profile dir (target/release/)
     let target_dir = Path::new(&std::env::var("OUT_DIR").unwrap())
         .ancestors().nth(3).unwrap().to_path_buf();
+
+    #[cfg(feature = "build_gamescope")]
+    build_gamescope(&deps_dir, &target_dir);
+
 
     for &(src, dst) in BUNDLE {
         let from = root.join(src);
@@ -128,25 +124,16 @@ fn main() {
             build_println!("Build skipping copying file {} due to it being inaccessable or not downloaded.", from.display());
         }
     }
-
-    for &(src, dst) in BUNDLE_OPTIONAL {
-        let from = root.join(src);
-        if from.exists() {
-            let to = target_dir.join(dst);
-            fs::create_dir_all(to.parent().unwrap()).unwrap();
-            let _ = fs::copy(&from, &to);
-        }
-    }
 }
 
 #[cfg(feature = "build_gamescope")]
-fn build_gamescope(deps_dir: &Path) {
+fn build_gamescope(deps_dir: &Path, target_dir: &PathBuf) {
     apply_patches(deps_dir); // Apply our own custom fixes for gamescope compilation
     
     use std::process::Command;
 
     let gamescope_dir = deps_dir.join("gamescope");
-    let build_dir = gamescope_dir.join("build-gcc");
+    let build_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("gamescope-build-gcc");
 
     if !build_dir.exists() && gamescope_dir.exists() {
         build_println!("Running meson setup command for gamescope");
@@ -171,6 +158,26 @@ fn build_gamescope(deps_dir: &Path) {
         .status()
         .expect("failed to run ninja for gamescope");
     assert!(status.success(), "ninja build failed for gamescope");
+
+    const GAMESCOPE_COPY_FILES: &[(&str, &str)] = &[
+        ("src/gamescope",       "bin/gamescope-kbm"),
+        ("src/gamescopereaper", "bin/gamescopereaper"),
+    ];
+
+    for &(src, dst) in GAMESCOPE_COPY_FILES {
+        let from = build_dir.join(src);
+        let to = target_dir.join(dst);
+        fs::create_dir_all(to.parent().unwrap()).unwrap();
+        if from.exists() {
+            fs::copy(&from, &to).unwrap_or_else(|e| {
+                build_println!("Failed to copy gamescope file: {} failed to copy to {} due to: {e}", from.display(), to.display());
+                0
+            });
+        } else {
+            build_println!("Build skipping copying file {} due to it being inaccessable or compile error.", from.display());
+        }
+    }
+
 }
 
 

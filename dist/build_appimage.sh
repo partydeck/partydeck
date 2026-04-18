@@ -24,7 +24,9 @@ export OUTPATH=.
 export DEPLOY_SDL=1
 export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
-export STRIP=0
+export STRIP=1
+
+: ${CARGO_TARGET_DIR:=../../target}
 
 #Remove leftovers
 # rm -rf AppDir dist appinfo
@@ -39,7 +41,7 @@ chmod +x ./quick-sharun
 ./get-debloated-pkgs --add-mesa --add-vulkan
 
 # Point to binaries
-./quick-sharun ../../target/debug/partydeck ../../target/debug/bin/gamescope-kbm ../../target/debug/bin/gamescopereaper ../../target/debug/bin/umu-run /usr/bin/fuse-overlayfs /usr/bin/bwrap /usr/bin/zip
+./quick-sharun $CARGO_TARGET_DIR/debug/partydeck $CARGO_TARGET_DIR/debug/bin/gamescope-kbm $CARGO_TARGET_DIR/debug/bin/gamescopereaper $CARGO_TARGET_DIR/debug/bin/umu-run /usr/bin/fuse-overlayfs /usr/bin/bwrap /usr/bin/zip
 
 # AppDir stuff
 ln -f ./AppDir/sharun ./AppDir/bin/gamescope-kbm

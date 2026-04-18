@@ -16,9 +16,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Fix wlroots
-        run: git -C deps/gamescope/subprojects/wlroots apply ../../../../wlroots.patch
-
       - name: Build partydeck
         run: cargo build -F build_gamescope -F download_deps
 

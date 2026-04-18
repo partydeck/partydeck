@@ -1,4 +1,4 @@
-#docker run -v $(pwd)/../:/workspace -w /workspace partydeck-appimage-build
+# docker run -v $(pwd)/../:/workspace -w /workspace partydeck-appimage-build
 FROM archlinux:latest AS base
 
 RUN pacman-key --init && \
@@ -22,4 +22,5 @@ RUN groupadd -g $GID appgroup && \
 USER appuser
 WORKDIR /workspace
 
-CMD ["bash", "-c", "cargo build -F build_gamescope -F download_deps && ./dist/build_appimage.sh"]
+# This currently downloads all binarys from source each time, change CARGO_HOME, the CARGO_TARGET_DIR to a set location passed through with -v if you want to cache.
+CMD ["bash", "-c", "export CARGO_TARGET_DIR=$(mktemp -d) && cargo build -F build_gamescope -F download_deps && ./dist/build_appimage.sh"]

@@ -20,9 +20,9 @@ jobs:
           pacman -S --noconfirm git meson rust cargo clang glslang libcap wlroots0.18 \
             sdl2 vulkan-headers libx11 libxmu libxcomposite libxrender libxres \
             libxtst libxkbcommon libdrm libinput wayland-protocols benchmark \
-            xorg-xwayland pipewire cmake \
-            libavif libheif aom rav1e libdecor libxdamage \
-            luajit
+            xorg-xwayland pipewire cmake libavif libheif aom rav1e libdecor \
+            libxdamage luajit \
+            libva libxss wget curl xorg-server-xvfb fuse-overlayfs bubblewrap zsync pulseaudio pipewire-audio alsa-plugins libxkbcommon-x11 libvdpau libvdpau-va-gl sudo pkg-config openssl zip
 
       - uses: actions/checkout@v4
         with:
@@ -49,8 +49,16 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           tar -czf "partydeck-${TAG}-linux-x86_64.tar.gz" partydeck/
 
+      - name: Build appimage
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          ./dist/build_appimage.sh
+          cp ./dist/appimage_generated/partydeck-anylinux-x86_64.AppImage partydeck-${TAG}-anylinux-x86_64.AppImage
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: partydeck-*-linux-x86_64.tar.gz
+          files: |
+            partydeck-*-linux-x86_64.tar.gz
+            partydeck-*-anylinux-x86_64.AppImage
           generate_release_notes: true

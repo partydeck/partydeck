@@ -28,9 +28,6 @@ export STRIP=1
 
 : ${CARGO_TARGET_DIR:=../../target}
 
-#Remove leftovers
-# rm -rf AppDir dist appinfo
-
 # ADD LIBRARIES
 wget --retry-connrefused --tries=30 "$DEBLOATED_PKGS" -O ./get-debloated-pkgs
 wget --retry-connrefused --tries=30 "$SHARUN" -O ./quick-sharun
@@ -42,9 +39,6 @@ chmod +x ./quick-sharun
 
 # Point to binaries
 ./quick-sharun $CARGO_TARGET_DIR/debug/partydeck $CARGO_TARGET_DIR/debug/bin/gamescope-kbm $CARGO_TARGET_DIR/debug/bin/gamescopereaper $CARGO_TARGET_DIR/debug/bin/umu-run /usr/bin/fuse-overlayfs /usr/bin/bwrap /usr/bin/zip
-
-# AppDir stuff
-ln -f ./AppDir/sharun ./AppDir/bin/gamescope-kbm
 
 # Res
 mkdir -p ./AppDir/share/partydeck

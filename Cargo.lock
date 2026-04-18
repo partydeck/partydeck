@@ -2713,7 +2713,6 @@ dependencies = [
  "sha2",
  "steamlocate",
  "tar",
- "walkdir",
  "x11rb",
  "zbus",
  "zip",

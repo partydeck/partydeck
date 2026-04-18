@@ -10,7 +10,7 @@ mod util;
 
 use crate::app::*;
 use crate::handler::Handler;
-use crate::monitor::get_monitors_errorless;
+use crate::monitor::{get_monitors_errorless, get_x11_dpi_scale};
 use crate::paths::PATH_PARTY;
 use crate::profiles::remove_guest_profiles;
 use crate::util::*;
@@ -47,6 +47,8 @@ fn main() -> eframe::Result {
         cmd.arg("--height");
         cmd.arg(h.to_string());
         cmd.arg("--exit-with-session");
+        cmd.env("PARTYDECK_SCREEN_WIDTH", w.to_string());
+        cmd.env("PARTYDECK_SCREEN_HEIGHT", h.to_string());
         let args_string = args
             .iter()
             .map(|arg| format!("\"{}\"", arg))
@@ -109,7 +111,7 @@ fn main() -> eframe::Result {
     let scrheight = monitors[0].height();
 
     let scale = match fullscreen {
-        true => scrheight as f32 / 560.0,
+        true => scrheight as f32 / 560.0 / get_x11_dpi_scale(),
         false => 1.3,
     };
 

@@ -73,6 +73,33 @@ fn get_monitors_x11() -> Result<Vec<Monitor>, Box<dyn std::error::Error>> {
     Ok(monitors)
 }
 
+pub fn get_x11_dpi_scale() -> f32 {
+    use x11rb::protocol::xproto::{AtomEnum, ConnectionExt as _};
+
+    let Ok((conn, screen_num)) = x11rb::connect(None) else {
+        return 1.0;
+    };
+    let root = conn.setup().roots[screen_num].root;
+
+    let Ok(cookie) = conn.get_property(false, root, AtomEnum::RESOURCE_MANAGER, AtomEnum::STRING, 0, 65536) else {
+        return 1.0;
+    };
+    let Ok(reply) = cookie.reply() else {
+        return 1.0;
+    };
+
+    let rm_string = String::from_utf8_lossy(&reply.value);
+    for line in rm_string.lines() {
+        if let Some(rest) = line.strip_prefix("Xft.dpi:") {
+            if let Ok(dpi) = rest.trim().parse::<f32>() {
+                if dpi > 0.0 { return dpi / 96.0; }
+            }
+        }
+    }
+
+    1.0
+}
+
 pub fn get_monitors_errorless() -> Vec<Monitor> {
     let mut monitors = Vec::new();
 
@@ -85,5 +112,12 @@ pub fn get_monitors_errorless() -> Vec<Monitor> {
         monitors.push(Monitor {name: "Partydeck Virtual Monitor".to_string(), width: 1920, height: 1080});
     }
 
-    return monitors;
+    if let (Ok(w), Ok(h)) = (std::env::var("PARTYDECK_SCREEN_WIDTH"), std::env::var("PARTYDECK_SCREEN_HEIGHT")) {
+        if let (Ok(w), Ok(h)) = (w.parse::<u32>(), h.parse::<u32>()) {
+            monitors[0].width = w;
+            monitors[0].height = h;
+        }
+    }
+
+    monitors
 }

@@ -1,0 +1,13 @@
+diff --git a/deps/gamescope/subprojects/wlroots/backend/libinput/switch.c b/deps/gamescope/subprojects/wlroots/backend/libinput/switch.c
+index abeec86d..58edf684 100644
+--- a/deps/gamescope/subprojects/wlroots/backend/libinput/switch.c
++++ b/deps/gamescope/subprojects/wlroots/backend/libinput/switch.c
+@@ -36,6 +36,8 @@ void handle_switch_toggle(struct libinput_event *event,
+ 	case LIBINPUT_SWITCH_TABLET_MODE:
+ 		wlr_event.switch_type = WLR_SWITCH_TYPE_TABLET_MODE;
+ 		break;
++	default:
++		break;
+ 	}
+ 	switch (libinput_event_switch_get_switch_state(sevent)) {
+ 	case LIBINPUT_SWITCH_STATE_OFF:

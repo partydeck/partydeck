@@ -18,7 +18,10 @@ A split-screen game launcher for Linux/SteamOS
 </p>
 
 > [!NOTE]
-> There is currently no official forum for discussing PartyDeck other than the issues page. If you would like to see a Discord server, please make it known on [this issue page](https://github.com/wunnr/partydeck/issues/127).
+> ### New discussion forum!
+> The discussion forum is now open! Join the matrix server for help, to contribute to the development discussion, or just leave feedback!
+> - [Matrix server](https://matrix.to/#/#partydeck:matrix.org)
+> - [More information](https://github.com/partydeck/partydeck/issues/168)
 
 > [!NOTE]
 > PartyDeck is in early development, and may contain violations of software best practices and security flaws; use at your own discretion! If you are experienced in software any advice and contributions are greatly appreciated.

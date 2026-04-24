@@ -38,11 +38,11 @@ chmod +x ./quick-sharun
 ./get-debloated-pkgs --add-mesa --add-vulkan
 
 # Point to binaries
-./quick-sharun $CARGO_TARGET_DIR/debug/partydeck $CARGO_TARGET_DIR/debug/bin/gamescope-kbm $CARGO_TARGET_DIR/debug/bin/gamescopereaper $CARGO_TARGET_DIR/debug/bin/umu-run /usr/bin/fuse-overlayfs /usr/bin/bwrap /usr/bin/zip
+./quick-sharun $CARGO_TARGET_DIR/release/partydeck $CARGO_TARGET_DIR/release/bin/gamescope-kbm $CARGO_TARGET_DIR/release/bin/gamescopereaper $CARGO_TARGET_DIR/release/bin/umu-run /usr/bin/fuse-overlayfs /usr/bin/bwrap /usr/bin/zip
 
 # Res
 mkdir -p ./AppDir/share/partydeck
-cp -r ../../res/* ./AppDir/share/partydeck
+cp -r $CARGO_TARGET_DIR/release/res/* ./AppDir/share/partydeck
 
 # Make AppImage
 ./quick-sharun --make-appimage

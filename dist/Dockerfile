@@ -23,4 +23,4 @@ USER appuser
 WORKDIR /workspace
 
 # This currently downloads all binarys from source each time, change CARGO_HOME, the CARGO_TARGET_DIR to a set location passed through with -v if you want to cache.
-CMD ["bash", "-c", "export CARGO_TARGET_DIR=$(mktemp -d) && cargo build -F build_gamescope -F download_deps && ./dist/build_appimage.sh"]
+CMD ["bash", "-c", "export CARGO_TARGET_DIR=$(mktemp -d) && cargo build --release -F build_gamescope -F download_deps && ./dist/build_appimage.sh"]

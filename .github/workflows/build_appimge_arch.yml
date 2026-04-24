@@ -17,7 +17,7 @@ jobs:
           submodules: recursive
 
       - name: Build partydeck
-        run: cargo build -F build_gamescope -F download_deps
+        run: cargo build --release -F build_gamescope -F download_deps
 
       - name: Build appimage
         run: |

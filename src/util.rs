@@ -163,16 +163,13 @@ pub fn fuse_overlayfs_unmount_gamedirs() -> Result<(), Box<dyn std::error::Error
         if let Ok(entry) = entry_result
             && entry.path().is_dir()
             && entry.file_name().to_string_lossy().starts_with("game-")
-            && is_mount_point(&entry.path())?
+            && is_mount_point(&entry.path()).unwrap_or(false)
         {
-            let status = Command::new("umount")
-                .arg("-l")
-                .arg("-v")
+            let _ = Command::new("fusermount3")
+                .arg("-u")
+                .arg("-z")
                 .arg(entry.path())
-                .status()?;
-            if !status.success() {
-                return Err(format!("Unmounting {} failed", entry.path().to_string_lossy()).into());
-            }
+                .status();
         }
     }
 
@@ -309,11 +306,11 @@ impl SanitizePath for String {
     }
 }
 
-pub trait OsFmt {
+pub trait _OsFmt {
     fn os_fmt(&self, win: bool) -> String;
 }
 
-impl OsFmt for String {
+impl _OsFmt for String {
     fn os_fmt(&self, win: bool) -> String {
         if !win {
             return self.clone();
@@ -324,7 +321,7 @@ impl OsFmt for String {
     }
 }
 
-impl OsFmt for PathBuf {
+impl _OsFmt for PathBuf {
     fn os_fmt(&self, win: bool) -> String {
         if !win {
             return self.to_string_lossy().to_string();

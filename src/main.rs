@@ -105,8 +105,13 @@ fn main() -> eframe::Result {
         std::fs::write(PATH_PARTY.join("goldberg_data/steam_settings/auto_send_invite.txt"), "").expect("failed to create auto_send_invite.txt");
     }
 
-    remove_guest_profiles().unwrap();
-    clear_tmp().unwrap();
+    if let Err(e) = remove_guest_profiles() {
+        eprintln!("[partydeck] Warning: Failed to remove guest profiles: {}", e);
+    }
+    if let Err(e) = clear_tmp() {
+        eprintln!("[partydeck] Error: Failed to clear tmp directory: {}. Please check if you have stale mounts or permission issues (e.g. if you previously ran as root).", e);
+        std::process::exit(1);
+    }
 
     let scrheight = monitors[0].height();
 

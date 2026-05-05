@@ -267,7 +267,7 @@ impl PartyApp {
                 ui.radio_value(&mut h.runtime, "steamrt4".to_string(), "4.0 (steamrt4)");
             });
         }
-        
+
         if h.spec_ver != HANDLER_SPEC_CURRENT_VERSION {
             if ui.button("Update Handler Specification Version").clicked() {
                 h.spec_ver = HANDLER_SPEC_CURRENT_VERSION;
@@ -485,6 +485,88 @@ impl PartyApp {
         }
     }
 
+    pub fn display_page_active(&mut self, ui: &mut Ui) {
+        ui.heading("Active Games - Controller Management");
+        ui.separator();
+
+        if self.running_processes.is_empty() {
+            ui.label("No games currently running.");
+            if ui.button("Back").clicked() {
+                self.cur_page = MenuPage::Home;
+            }
+            return;
+        }
+
+        ui.horizontal(|ui| {
+            if ui.button("Scan for Controllers").clicked() {
+                self.input_devices = scan_input_devices(&self.options.pad_filter_type);
+            }
+            ui.label(format!("Running processes: {}", self.running_processes.len()));
+        });
+
+        ui.separator();
+
+        let mut slots = self.router.slots.lock().unwrap();
+
+        if slots.is_empty() {
+            ui.label("No virtual controller slots active (did the instances use gamepads?).");
+        }
+
+        for (i, slot) in slots.iter_mut().enumerate() {
+            ui.group(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(format!("Instance {} Controller:", i + 1)).strong());
+
+                    let combo_label = if let Some(path) = &slot.physical_path {
+                        if let Some(device) = self.input_devices.iter().find(|d| d.path() == path) {
+                            format!("{} {} ({})", device.emoji(), device.fancyname(), path.trim_start_matches("/dev/input/"))
+                        } else {
+                            format!("⚠ Disconnected ({})", path.trim_start_matches("/dev/input/"))
+                        }
+                    } else {
+                        "Not Assigned".to_string()
+                    };
+
+                    egui::ComboBox::from_id_salt(format!("reassign_combo_{}", i))
+                        .selected_text(combo_label)
+                        .width(300.0)
+                        .show_ui(ui, |ui| {
+                            // "None" option to disconnect explicitly
+                            if ui.selectable_label(slot.physical_path.is_none(), "None (Disconnect)").clicked() {
+                                slot.physical_path = None;
+                            }
+
+                            ui.separator();
+
+                            for dev in self.input_devices.iter() {
+                                if dev.device_type() != DeviceType::Gamepad {
+                                    continue;
+                                }
+
+                                let is_selected = slot.physical_path.as_ref() == Some(&dev.path().to_string());
+                                let label = format!("{} {} ({})", dev.emoji(), dev.fancyname(), dev.path().trim_start_matches("/dev/input/"));
+
+                                if ui.selectable_label(is_selected, label).clicked() {
+                                    slot.physical_path = Some(dev.path().to_string());
+                                }
+                            }
+                        });
+                });
+            });
+        }
+
+        ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+            if ui.button("Stop All Games").clicked() {
+                if yesno("Stop Games?", "Are you sure you want to kill all running game processes?") {
+                    for child in &mut self.running_processes {
+                        let _ = child.kill();
+                    }
+                }
+            }
+            ui.separator();
+        });
+    }
+
     pub fn display_settings_general(&mut self, ui: &mut Ui) {
         let check_for_app_updates = ui.checkbox(&mut self.options.check_for_updates, "Check for partydeck updates");
         if check_for_app_updates.hovered() {
@@ -543,7 +625,7 @@ impl PartyApp {
                 self.input_devices = scan_input_devices(&self.options.pad_filter_type);
             }
         });
-        
+
         let profile_unique_dirs_check = ui.checkbox(
             &mut self.options.profile_unique_dirs,
             "Unique per-profile environments",
@@ -599,7 +681,7 @@ impl PartyApp {
         if proton_separate_pfxs_check.hovered() {
             self.infotext = "DEFAULT: Enabled\n\nRuns each instance in separate Proton prefixes. If unsure, leave this checked. Multiple prefixes takes up more disk space, but generally provides better compatibility and fewer issues with Proton-based games.".to_string();
         }
-        
+
         let proton_wow64_check = ui.checkbox(
             &mut self.options.proton_wow64,
             "Run Proton in WoW64 mode",
@@ -607,7 +689,7 @@ impl PartyApp {
         if proton_wow64_check.hovered() {
             self.infotext = "DEFAULT: Enabled\n\nRuns Proton games in the new Wine WoW64 mode. If unsure, leave this checked.".to_string();
         }
-        
+
         if ui.button("Erase All Proton Prefix Data").clicked() {
             if yesno(
                 "Erase Prefix?",
@@ -622,7 +704,7 @@ impl PartyApp {
             }
         }
     }
-    
+
     pub fn display_settings_gamescope(&mut self, ui: &mut Ui) {
         let gamescope_lowres_fix_check = ui.checkbox(
             &mut self.options.gamescope_fix_lowres,

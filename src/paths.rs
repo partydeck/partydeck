@@ -22,7 +22,7 @@ pub static PATH_PARTY: LazyLock<PathBuf> = LazyLock::new(|| {
     PATH_LOCAL_SHARE.join("partydeck")
 });
 
-pub static PATH_STEAM: LazyLock<PathBuf> = LazyLock::new(|| {
+pub static _PATH_STEAM: LazyLock<PathBuf> = LazyLock::new(|| {
     if PATH_HOME.join(".steam").exists() {
         PATH_HOME.join(".steam")
     } else if PATH_HOME

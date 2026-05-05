@@ -1,5 +1,6 @@
-use std::{fs, path::PathBuf};
-use std::path::Path;
+use std::fs;
+#[allow(unused_imports)]
+use std::path::{Path, PathBuf};
 
 #[cfg(all(not(feature = "download_deps_latest"), feature = "download_deps"))]
 use sha2::{Sha256, Digest};

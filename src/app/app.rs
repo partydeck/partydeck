@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread::sleep;
 
@@ -13,7 +14,7 @@ use crate::util::*;
 
 use eframe::egui::{self, Key};
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 pub enum MenuPage {
     Home,
     Settings,
@@ -21,6 +22,7 @@ pub enum MenuPage {
     EditHandler,
     Game,
     Instances,
+    Active,
 }
 
 #[derive(Eq, PartialEq)]
@@ -53,6 +55,11 @@ pub struct PartyApp {
     pub loading_since: Option<std::time::Instant>,
     #[allow(dead_code)]
     pub task: Option<std::thread::JoinHandle<()>>,
+
+    pub running_processes: Vec<std::process::Child>,
+    pub tx: Sender<Vec<std::process::Child>>,
+    pub rx: Receiver<Vec<std::process::Child>>,
+    pub router: InputRouter,
 }
 
 macro_rules! cur_handler {
@@ -74,6 +81,8 @@ impl PartyApp {
             None => MenuPage::Home,
         };
 
+        let (tx, rx) = channel();
+
         let mut app = Self {
             installed_steamapps: get_installed_steamapps(),
             needs_update: Arc::new(AtomicBool::new(false)),
@@ -93,6 +102,10 @@ impl PartyApp {
             loading_msg: None,
             loading_since: None,
             task: None,
+            running_processes: Vec::new(),
+            tx,
+            rx,
+            router: InputRouter::new(),
         };
 
         if app.options.check_for_updates {
@@ -164,6 +177,7 @@ impl eframe::App for PartyApp {
                 MenuPage::EditHandler => self.display_page_edit_handler(ui),
                 MenuPage::Game => self.display_page_game(ui),
                 MenuPage::Instances => self.display_page_instances(ui),
+                MenuPage::Active => self.display_page_active(ui),
             }
         });
 
@@ -176,6 +190,27 @@ impl eframe::App for PartyApp {
                 self.task = Some(handle);
             }
         }
+
+        // Receive new process handles
+        while let Ok(handles) = self.rx.try_recv() {
+            self.running_processes.extend(handles);
+            self.cur_page = MenuPage::Active;
+        }
+
+        // Poll running processes
+        if !self.running_processes.is_empty() {
+            self.running_processes.retain_mut(|child| {
+                match child.try_wait() {
+                    Ok(None) => true, // Still running
+                    _ => false, // Exited or error
+                }
+            });
+
+            if self.running_processes.is_empty() {
+                self.cleanup_after_game();
+            }
+        }
+
         if let Some(start) = self.loading_since {
             if start.elapsed() > std::time::Duration::from_secs(60) {
                 // Give up waiting after one minute
@@ -200,13 +235,32 @@ impl eframe::App for PartyApp {
                         });
                 });
         }
-        if ctx.input(|input| input.focused) {
+        if ctx.input(|input| input.focused) || !self.running_processes.is_empty() {
             ctx.request_repaint_after(std::time::Duration::from_millis(33)); // 30 fps
         }
     }
 }
 
 impl PartyApp {
+    pub fn cleanup_after_game(&mut self) {
+        if self.options.enable_kwin_script {
+            if let Err(err) = kwin_dbus_unload_script() {
+                println!("[partydeck] Error unloading KWin script: {}", err);
+            }
+        }
+        if let Err(err) = remove_guest_profiles() {
+            println!("[partydeck] Error removing guest profiles: {}", err);
+        }
+        if let Err(err) = clear_tmp() {
+            println!("[partydeck] Error removing tmp directory: {}", err);
+        }
+        if self.handler_lite.is_some() {
+            self.cur_page = MenuPage::Instances;
+        } else {
+            self.cur_page = MenuPage::Home;
+        }
+    }
+
     pub fn spawn_task<F>(&mut self, msg: &str, f: F)
     where
         F: FnOnce() + Send + 'static,
@@ -431,7 +485,10 @@ impl PartyApp {
         let cfg = self.options.clone();
         let _ = save_cfg(&cfg);
 
-        self.cur_page = MenuPage::Home;
+        let tx = self.tx.clone();
+        let router = self.router.clone();
+
+        self.cur_page = MenuPage::Active;
         self.spawn_task(
             "Launching...\n\nDon't press any buttons or move any analog sticks or mice.",
             move || {
@@ -451,23 +508,14 @@ impl PartyApp {
                     msg("Failed mounting game directories", &format!("{err}"));
                     return;
                 }
-                if let Err(err) = launch_game(&handler, &dev_infos, &instances, &cfg) {
-                    println!("[partydeck] Error launching instances: {}", err);
-                    msg("Launch Error", &format!("{err}"));
-                }
-                if cfg.enable_kwin_script {
-                    if let Err(err) = kwin_dbus_unload_script() {
-                        println!("[partydeck] Error unloading KWin script: {}", err);
-                        msg("Failed unloading KWin script", &format!("{err}"));
+                match launch_game(&handler, &dev_infos, &instances, &cfg, &router) {
+                    Ok(handles) => {
+                        let _ = tx.send(handles);
                     }
-                }
-                if let Err(err) = remove_guest_profiles() {
-                    println!("[partydeck] Error removing guest profiles: {}", err);
-                    msg("Failed removing guest profiles", &format!("{err}"));
-                }
-                if let Err(err) = clear_tmp() {
-                    println!("[partydeck] Error removing tmp directory: {}", err);
-                    msg("Failed removing tmp directory", &format!("{err}"));
+                    Err(err) => {
+                        println!("[partydeck] Error launching instances: {}", err);
+                        msg("Launch Error", &format!("{err}"));
+                    }
                 }
             },
         );

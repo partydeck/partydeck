@@ -44,8 +44,10 @@ pub fn create_profile_gamesave(name: &str, h: &Handler) -> Result<(), Box<dyn Er
     println!("[partydeck] Creating game save {} for {}", uid, name);
 
     std::fs::create_dir_all(&path_gamesave)?;
-    
-    if let Some(appid) = h.steam_appid && h.use_goldberg {
+
+    if let Some(appid) = h.steam_appid
+        && h.use_goldberg
+    {
         let path_exec = path_gamesave.join(&h.exec);
         let path_execdir = path_exec.parent().ok_or_else(|| "couldn't get parent")?;
         if !path_execdir.exists() {

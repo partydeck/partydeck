@@ -1,5 +1,5 @@
-use crate::monitor::Monitor;
 use crate::app::PartyConfig;
+use crate::monitor::Monitor;
 use crate::profiles::GUEST_NAMES;
 
 #[derive(Clone)]
@@ -16,29 +16,60 @@ pub fn set_instance_resolutions(
     instances: &mut Vec<Instance>,
     primary_monitor: &Monitor,
     cfg: &PartyConfig,
+    use_river_layout: bool,
 ) {
     let (basewidth, baseheight) = (primary_monitor.width(), primary_monitor.height());
-    let playercount = instances.len();
-
-    for instance in instances {
-        let (mut w, mut h) = match playercount {
-            1 => (basewidth, baseheight),
-            2 => {
-                if cfg.vertical_two_player {
-                    (basewidth / 2, baseheight)
-                } else {
-                    (basewidth, baseheight / 2)
-                }
+    let playercount = instances.len() as u32;
+    if use_river_layout {
+        let (mut w, mut h) = (0 as u32, 0 as u32);
+        while w * h < playercount {
+            if basewidth * h * 9 > baseheight * w * 16 {
+                w += 1;
+            } else {
+                h += 1;
             }
-            _ => (basewidth / 2, baseheight / 2),
-        };
-        if h < 600 && cfg.gamescope_fix_lowres {
-            let ratio = w as f32 / h as f32;
-            h = 600;
-            w = (h as f32 * ratio) as u32;
         }
-        instance.width = w;
-        instance.height = h;
+
+        while playercount <= w * (h - 1) {
+            h -= 1
+        }
+        while playercount <= (w - 1) * h {
+            w -= 1
+        }
+
+        for i in 0..playercount {
+            let mut cur_row_width = w - ((i % h >= (playercount - 1) % h + 1) as u32);
+
+            if cur_row_width == 0 {
+                cur_row_width = 1;
+            }
+
+            let instance = &mut instances[i as usize];
+
+            instance.width = (basewidth / cur_row_width) as u32;
+            instance.height = (baseheight / h) as u32;
+        }
+    } else {
+        for instance in instances {
+            let (mut w, mut h) = match playercount {
+                1 => (basewidth, baseheight),
+                2 => {
+                    if cfg.vertical_two_player {
+                        (basewidth / 2, baseheight)
+                    } else {
+                        (basewidth, baseheight / 2)
+                    }
+                }
+                _ => (basewidth / 2, baseheight / 2),
+            };
+            if h < 600 && cfg.gamescope_fix_lowres {
+                let ratio = w as f32 / h as f32;
+                h = 600;
+                w = (h as f32 * ratio) as u32;
+            }
+            instance.width = w;
+            instance.height = h;
+        }
     }
 }
 

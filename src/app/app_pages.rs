@@ -2,10 +2,10 @@ use super::app::{MenuPage, PartyApp, SettingsPage};
 use super::config::*;
 use crate::handler::*;
 use crate::input::*;
+use crate::monitor::get_monitors_errorless;
 use crate::paths::*;
 use crate::profiles::*;
 use crate::util::*;
-use crate::monitor::get_monitors_errorless;
 
 use dialog::DialogBox;
 use eframe::egui::RichText;
@@ -41,7 +41,10 @@ impl PartyApp {
         ui.horizontal_wrapped(|ui| {
             ui.hyperlink_to("@Blahkaey", "https://github.com/Blahkaey");
             ui.hyperlink_to("@blckink", "https://github.com/blckink");
-            ui.hyperlink_to("@davidawesome-02", "https://github.com/davidawesome-02");
+            ui.hyperlink_to(
+                "@davidawesome02",
+                "https://github.com/davidawesome02-backup",
+            );
             ui.hyperlink_to("@felipecrs", "https://github.com/felipecrs");
             ui.hyperlink_to("@framilano", "https://github.com/framilano");
             ui.hyperlink_to("@FrancisBernard34", "https://github.com/FrancisBernard34");
@@ -68,14 +71,11 @@ impl PartyApp {
         egui::ScrollArea::vertical()
             .max_height(ui.available_height() - 30.0) // Remove lower menue height from avaliable
             .auto_shrink(false)
-            .show(ui, |ui| {
-                match self.settings_page {
-                    SettingsPage::General => self.display_settings_general(ui),
-                    SettingsPage::Proton => self.display_settings_proton(ui),
-                    SettingsPage::Gamescope => self.display_settings_gamescope(ui),
-                }
-        });
-
+            .show(ui, |ui| match self.settings_page {
+                SettingsPage::General => self.display_settings_general(ui),
+                SettingsPage::Proton => self.display_settings_proton(ui),
+                SettingsPage::Gamescope => self.display_settings_gamescope(ui),
+            });
 
         ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
             ui.horizontal(|ui| {
@@ -267,11 +267,14 @@ impl PartyApp {
                 ui.radio_value(&mut h.runtime, "steamrt4".to_string(), "4.0 (steamrt4)");
             });
         }
-        
+
         if h.spec_ver != HANDLER_SPEC_CURRENT_VERSION {
             if ui.button("Update Handler Specification Version").clicked() {
                 h.spec_ver = HANDLER_SPEC_CURRENT_VERSION;
-                msg("Handler Specification Version Updated", "Remember to save your changes.");
+                msg(
+                    "Handler Specification Version Updated",
+                    "Remember to save your changes.",
+                );
             }
         }
 
@@ -431,9 +434,10 @@ impl PartyApp {
                 }
 
                 if self.instance_add_dev == None {
-                    let invitebtn = ui.add(
-                        egui::Button::image_and_text(egui::include_image!("../../res/BTN_NORTH.png"), "[A] Invite New Device")
-                    );
+                    let invitebtn = ui.add(egui::Button::image_and_text(
+                        egui::include_image!("../../res/BTN_NORTH.png"),
+                        "[A] Invite New Device",
+                    ));
                     if invitebtn.clicked() {
                         self.instance_add_dev = Some(i);
                     }
@@ -486,7 +490,10 @@ impl PartyApp {
     }
 
     pub fn display_settings_general(&mut self, ui: &mut Ui) {
-        let check_for_app_updates = ui.checkbox(&mut self.options.check_for_updates, "Check for partydeck updates");
+        let check_for_app_updates = ui.checkbox(
+            &mut self.options.check_for_updates,
+            "Check for partydeck updates",
+        );
         if check_for_app_updates.hovered() {
             self.infotext = "DEFAULT: Enabled\n\nWARNING: CONTACTS GITHUB's SERVERS ON EVERY LAUNCH\nMakes partydeck check online for updates durring each launch, and notfies user when avaliable.".to_string();
         }
@@ -517,6 +524,44 @@ impl PartyApp {
             }
         });
 
+        let mut comp_selected_text = "None".to_owned();
+        if let Some(comp_opt) = &self.options.nested_compositor {
+            comp_selected_text = match comp_opt.as_str() {
+                "river" => "River".to_owned(),
+                "kwin_wayland" => "Kwin".to_owned(),
+                _ => comp_selected_text,
+            }
+        }
+
+        egui::ComboBox::from_label("Used nested compositor")
+            .selected_text(comp_selected_text)
+            .show_ui(ui, |ui| {
+                if ui
+                    .selectable_label(
+                        self.options.nested_compositor == Some("kwin_wayland".to_owned()),
+                        "Kwin",
+                    )
+                    .clicked()
+                {
+                    self.options.nested_compositor = Some("kwin_wayland".to_owned());
+                }
+                if ui
+                    .selectable_label(
+                        self.options.nested_compositor == Some("river".to_owned()),
+                        "River",
+                    )
+                    .clicked()
+                {
+                    self.options.nested_compositor = Some("river".to_owned());
+                }
+                if ui
+                    .selectable_label(self.options.nested_compositor == None, "None")
+                    .clicked()
+                {
+                    self.options.nested_compositor = None;
+                }
+            });
+
         ui.horizontal(|ui| {
             let filter_label = ui.label("Controller filter");
             let r1 = ui.radio_value(
@@ -543,7 +588,7 @@ impl PartyApp {
                 self.input_devices = scan_input_devices(&self.options.pad_filter_type);
             }
         });
-        
+
         let profile_unique_dirs_check = ui.checkbox(
             &mut self.options.profile_unique_dirs,
             "Unique per-profile environments",
@@ -599,15 +644,13 @@ impl PartyApp {
         if proton_separate_pfxs_check.hovered() {
             self.infotext = "DEFAULT: Enabled\n\nRuns each instance in separate Proton prefixes. If unsure, leave this checked. Multiple prefixes takes up more disk space, but generally provides better compatibility and fewer issues with Proton-based games.".to_string();
         }
-        
-        let proton_wow64_check = ui.checkbox(
-            &mut self.options.proton_wow64,
-            "Run Proton in WoW64 mode",
-        );
+
+        let proton_wow64_check =
+            ui.checkbox(&mut self.options.proton_wow64, "Run Proton in WoW64 mode");
         if proton_wow64_check.hovered() {
             self.infotext = "DEFAULT: Enabled\n\nRuns Proton games in the new Wine WoW64 mode. If unsure, leave this checked.".to_string();
         }
-        
+
         if ui.button("Erase All Proton Prefix Data").clicked() {
             if yesno(
                 "Erase Prefix?",
@@ -622,7 +665,7 @@ impl PartyApp {
             }
         }
     }
-    
+
     pub fn display_settings_gamescope(&mut self, ui: &mut Ui) {
         let gamescope_lowres_fix_check = ui.checkbox(
             &mut self.options.gamescope_fix_lowres,
@@ -633,6 +676,14 @@ impl PartyApp {
         let kbm_support_check = ui.checkbox(
             &mut self.options.kbm_support,
             "Enable keyboard and mouse support through custom Gamescope",
+        );
+        let resize_support = ui.checkbox(
+            &mut self.options.gamescope_resize_support,
+            "Enable gamescope resize support",
+        );
+        let gamescope_force_fullscreen = ui.checkbox(
+            &mut self.options.gamescope_force_fullscreen,
+            "Force gamescope to fullscreen games",
         );
         let gamescope_force_grab_cursor_check = ui.checkbox(
             &mut self.options.gamescope_force_grab_cursor,
@@ -645,8 +696,14 @@ impl PartyApp {
         if gamescope_sdl_backend_check.hovered() {
             self.infotext = "Runs gamescope sessions using the SDL backend. This is required for multi-monitor support. If unsure, leave this checked. If gamescope sessions only show a black screen or give an error (especially on Nvidia + Wayland), try disabling this.".to_string();
         }
+        if resize_support.hovered() {
+            self.infotext = "Runs a custom Gamescope build with support for resizing dynamicly (use with river nested compositor).".to_string();
+        }
         if kbm_support_check.hovered() {
             self.infotext = "Runs a custom Gamescope build with support for holding keyboards and mice. If you want to use your own Gamescope installation, uncheck this.".to_string();
+        }
+        if gamescope_force_fullscreen.hovered() {
+            self.infotext = "Sets --force-fullscreen-windows on gamescope in order to properly have games size.".to_string();
         }
         if gamescope_force_grab_cursor_check.hovered() {
             self.infotext = "Sets the \"--force-grab-cursor\" flag in Gamescope. This keeps the cursor within the Gamescope window. If unsure, leave this unchecked.".to_string();

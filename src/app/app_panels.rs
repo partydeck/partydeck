@@ -62,7 +62,7 @@ impl PartyApp {
                 self.instances.clear();
                 self.input_devices = scan_input_devices(&self.options.pad_filter_type);
             }
-            
+
             if ui.button("🖵 🔄").clicked() {
                 self.instances.clear();
                 self.monitors = get_monitors_errorless();

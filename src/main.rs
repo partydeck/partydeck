@@ -3,6 +3,7 @@ mod handler;
 mod input;
 mod instance;
 mod launch;
+mod layout_manager;
 mod monitor;
 mod paths;
 mod profiles;
@@ -20,7 +21,7 @@ fn main() -> eframe::Result {
         println!("{}", USAGE_TEXT);
         std::process::exit(0);
     }
-    
+
     let monitors = get_monitors_errorless();
 
     println!("[partydeck] Monitors detected:");
@@ -35,7 +36,28 @@ fn main() -> eframe::Result {
 
     let args: Vec<String> = std::env::args().collect();
 
+    if let Some(layout_index) = args.iter().position(|arg| arg == "--internal-layout") {
+        if let Some(next_arg) = args.get(layout_index + 1) {
+            let layout_args_parts: Vec<&str> = next_arg.split(":").collect();
+            let [fd_str, width_str, height_str] = layout_args_parts.as_slice() else {
+                panic!("Expected 3 layout arguments: openfd:width:height");
+            };
+            let layout_fd: i32 = fd_str.parse().expect("Cant parse layout fd");
+            let layout_width: i32 = width_str.parse().expect("Cant parse layout width");
+            let layout_height: i32 = height_str.parse().expect("Cant parse layout height");
+            layout_manager::start_layout_manager(layout_fd, layout_width, layout_height);
+            std::process::exit(0);
+        } else {
+            println!(
+                "ERROR: --internal-layout is an internal api, partydeck SHOULD NOT be started with --internal-layout unless you know what your doing"
+            );
+            println!("{}", USAGE_TEXT);
+            std::process::exit(0);
+        }
+    }
+
     if std::env::args().any(|arg| arg == "--kwin") {
+        // We should depreciate this option as it will cause problems later, and its not really needed anymore
         let args: Vec<String> = std::env::args().filter(|arg| arg != "--kwin").collect();
 
         let (w, h) = (monitors[0].width(), monitors[0].height());
@@ -101,8 +123,16 @@ fn main() -> eframe::Result {
     if !PATH_PARTY.join("goldberg_data").exists() {
         std::fs::create_dir_all(PATH_PARTY.join("goldberg_data/steam_settings"))
             .expect("Failed to create goldberg data!");
-        std::fs::write(PATH_PARTY.join("goldberg_data/steam_settings/auto_accept_invite.txt"), "").expect("failed to create auto_accept_invite.txt");
-        std::fs::write(PATH_PARTY.join("goldberg_data/steam_settings/auto_send_invite.txt"), "").expect("failed to create auto_send_invite.txt");
+        std::fs::write(
+            PATH_PARTY.join("goldberg_data/steam_settings/auto_accept_invite.txt"),
+            "",
+        )
+        .expect("failed to create auto_accept_invite.txt");
+        std::fs::write(
+            PATH_PARTY.join("goldberg_data/steam_settings/auto_send_invite.txt"),
+            "",
+        )
+        .expect("failed to create auto_send_invite.txt");
     }
 
     remove_guest_profiles().unwrap();

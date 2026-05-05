@@ -1,7 +1,6 @@
 use x11rb::connection::Connection;
 use x11rb::protocol::randr::ConnectionExt as _;
 
-
 #[derive(Clone)]
 pub struct Monitor {
     name: String,
@@ -21,6 +20,14 @@ impl Monitor {
     pub fn height(&self) -> u32 {
         self.height
     }
+
+    pub fn new(name: String, width: u32, height: u32) -> Self {
+        Self {
+            name,
+            width,
+            height,
+        }
+    }
 }
 
 // This should mimic the SDL monitor retrival used by gamescope, while avoiding all of SDL. (IGNORES SDL_HINT_VIDEO_DISPLAY_PRIORITY, and if display dosnt have "visual info" because all modern one will)
@@ -30,14 +37,9 @@ fn get_monitors_x11() -> Result<Vec<Monitor>, Box<dyn std::error::Error>> {
     let screen = &con.setup().roots[screen_num];
 
     // Get primary output (sorted first in sdl, but as sdl comments say, this should be done already.)
-    let primary = con
-        .randr_get_output_primary(screen.root)?
-        .reply()?
-        .output;
+    let primary = con.randr_get_output_primary(screen.root)?.reply()?.output;
 
-    let res = con
-        .randr_get_screen_resources(screen.root)?
-        .reply()?;
+    let res = con.randr_get_screen_resources(screen.root)?.reply()?;
 
     let mut monitors = Vec::new();
 
@@ -107,9 +109,14 @@ pub fn get_monitors_errorless() -> Vec<Monitor> {
         monitors = ret_monitors;
     }
 
-    if monitors.len() == 0 { // Quick patch for those who have no x11 visable monitors, so we dont just panic.
+    if monitors.len() == 0 {
+        // Quick patch for those who have no x11 visable monitors, so we dont just panic.
         println!("[PARTYDECK] Failed to get monitors; using assumed 1920x1080");
-        monitors.push(Monitor {name: "Partydeck Virtual Monitor".to_string(), width: 1920, height: 1080});
+        monitors.push(Monitor {
+            name: "Partydeck Virtual Monitor".to_string(),
+            width: 1920,
+            height: 1080,
+        });
     }
 
     if let (Ok(w), Ok(h)) = (std::env::var("PARTYDECK_SCREEN_WIDTH"), std::env::var("PARTYDECK_SCREEN_HEIGHT")) {

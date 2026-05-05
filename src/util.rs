@@ -10,6 +10,8 @@ use std::process::Command;
 use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
+use std::env;
+
 pub fn msg(title: &str, contents: &str) {
     let _ = dialog::Message::new(contents).title(title).show();
 }
@@ -219,48 +221,6 @@ pub fn check_for_partydeck_update() -> bool {
     false
 }
 
-// Sends the splitscreen script to the active KWin session through DBus
-pub fn kwin_dbus_start_script(file: PathBuf) -> Result<(), Box<dyn Error>> {
-    println!(
-        "[partydeck] util::kwin_dbus_start_script - Loading script {}...",
-        file.display()
-    );
-    if !file.exists() {
-        return Err("[partydeck] util::kwin_dbus_start_script - Script file doesn't exist!".into());
-    }
-
-    let conn = zbus::blocking::Connection::session()?;
-    let proxy = zbus::blocking::Proxy::new(
-        &conn,
-        "org.kde.KWin",
-        "/Scripting",
-        "org.kde.kwin.Scripting",
-    )?;
-
-    let _: i32 = proxy.call("loadScript", &(file.to_string_lossy(), "splitscreen"))?;
-    println!("[partydeck] util::kwin_dbus_start_script - Script loaded. Starting...");
-    let _: () = proxy.call("start", &())?;
-
-    println!("[partydeck] util::kwin_dbus_start_script - KWin script started.");
-    Ok(())
-}
-
-pub fn kwin_dbus_unload_script() -> Result<(), Box<dyn Error>> {
-    println!("[partydeck] util::kwin_dbus_unload_script - Unloading splitscreen script...");
-    let conn = zbus::blocking::Connection::session()?;
-    let proxy = zbus::blocking::Proxy::new(
-        &conn,
-        "org.kde.KWin",
-        "/Scripting",
-        "org.kde.kwin.Scripting",
-    )?;
-
-    let _: bool = proxy.call("unloadScript", &("splitscreen"))?;
-
-    println!("[partydeck] util::kwin_dbus_unload_script - Script unloaded.");
-    Ok(())
-}
-
 pub trait SanitizePath {
     fn sanitize_path(&self) -> String;
 }
@@ -334,3 +294,4 @@ impl OsFmt for PathBuf {
         }
     }
 }
+

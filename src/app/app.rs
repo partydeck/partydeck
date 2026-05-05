@@ -56,9 +56,11 @@ pub struct PartyApp {
     #[allow(dead_code)]
     pub task: Option<std::thread::JoinHandle<()>>,
 
-    pub running_processes: Vec<std::process::Child>,
+    pub running_processes: Vec<u32>, // Track PIDs
     pub tx: Sender<Vec<std::process::Child>>,
     pub rx: Receiver<Vec<std::process::Child>>,
+    pub exit_tx: Sender<u32>,
+    pub exit_rx: Receiver<u32>,
     pub router: InputRouter,
 }
 
@@ -82,6 +84,7 @@ impl PartyApp {
         };
 
         let (tx, rx) = channel();
+        let (exit_tx, exit_rx) = channel();
 
         let mut app = Self {
             installed_steamapps: get_installed_steamapps(),
@@ -105,6 +108,8 @@ impl PartyApp {
             running_processes: Vec::new(),
             tx,
             rx,
+            exit_tx,
+            exit_rx,
             router: InputRouter::new(),
         };
 
@@ -191,24 +196,33 @@ impl eframe::App for PartyApp {
             }
         }
 
-        // Receive new process handles
+        // Receive new process handles and spawn watchers
         while let Ok(handles) = self.rx.try_recv() {
-            self.running_processes.extend(handles);
+            for mut child in handles {
+                let pid = child.id();
+                self.running_processes.push(pid);
+                
+                let exit_tx = self.exit_tx.clone();
+                let ctx = ctx.clone();
+                std::thread::spawn(move || {
+                    let _ = child.wait();
+                    let _ = exit_tx.send(pid);
+                    ctx.request_repaint();
+                });
+            }
             self.cur_page = MenuPage::Active;
         }
 
-        // Poll running processes
-        if !self.running_processes.is_empty() {
-            self.running_processes.retain_mut(|child| {
-                match child.try_wait() {
-                    Ok(None) => true, // Still running
-                    _ => false, // Exited or error
-                }
-            });
+        // Handle process exit events
+        let mut exited = false;
+        while let Ok(pid) = self.exit_rx.try_recv() {
+            self.running_processes.retain(|&p| p != pid);
+            exited = true;
+        }
 
-            if self.running_processes.is_empty() {
-                self.cleanup_after_game();
-            }
+        if exited && self.running_processes.is_empty() {
+            println!("[partydeck-debug] All processes exited, cleaning up...");
+            self.cleanup_after_game();
         }
 
         if let Some(start) = self.loading_since {

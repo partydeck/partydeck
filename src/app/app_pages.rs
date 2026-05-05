@@ -12,6 +12,7 @@ use eframe::egui::RichText;
 use eframe::egui::{self, Ui};
 use rfd::FileDialog;
 use std::path::PathBuf;
+use std::process::Command;
 
 macro_rules! cur_handler {
     ($self:expr) => {
@@ -498,6 +499,10 @@ impl PartyApp {
         }
 
         ui.horizontal(|ui| {
+            if ui.button("Back").clicked() {
+                self.cur_page = MenuPage::Home;
+            }
+            ui.separator();
             if ui.button("Scan for Controllers").clicked() {
                 self.input_devices = scan_input_devices(&self.options.pad_filter_type);
             }
@@ -554,15 +559,19 @@ impl PartyApp {
                 });
             });
         }
+        
+        drop(slots);
 
         ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
-            if ui.button("Stop All Games").clicked() {
-                if yesno("Stop Games?", "Are you sure you want to kill all running game processes?") {
-                    for child in &mut self.running_processes {
-                        let _ = child.kill();
+            ui.horizontal(|ui| {
+                if ui.button("Stop All Games").clicked() {
+                    if yesno("Stop Games?", "Are you sure you want to kill all running game processes?") {
+                        for &pid in &self.running_processes {
+                            let _ = Command::new("kill").arg("-9").arg(pid.to_string()).status();
+                        }
                     }
                 }
-            }
+            });
             ui.separator();
         });
     }

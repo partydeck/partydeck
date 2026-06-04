@@ -96,34 +96,123 @@ impl PartyApp {
 
     pub fn display_page_profiles(&mut self, ui: &mut Ui) {
         ui.heading("Profiles");
+
+        // Each profile owns a pinned Goldberg SteamID, which fixes its game-save
+        // identity (e.g. the EldenRing/<SteamID>/ER0000.co2 folder). If the
+        // currently-selected game declares where its saves live (`save_dir`), we
+        // also show per-profile save status + an import button for that game.
+        let save_ctx: Option<(String, String)> = self
+            .handlers
+            .get(self.selected_handler)
+            .filter(|h| !h.save_dir.is_empty())
+            .map(|h| (h.name.clone(), h.save_dir.clone()));
+
+        if let Some((game, _)) = &save_ctx {
+            ui.label(format!(
+                "Showing saves for: {game}  (select a different game on the left to switch)"
+            ));
+        } else {
+            ui.label("Each profile is a fixed identity (SteamID) with its own saves.");
+        }
         ui.separator();
+
+        let profiles = self.profiles.clone();
+        let mut dirty = false;
+
         egui::ScrollArea::vertical()
-            .max_height(ui.available_height() - 16.0)
+            .max_height(ui.available_height() - 40.0)
             .auto_shrink(false)
             .show(ui, |ui| {
-                for profile in &self.profiles {
-                    if ui.selectable_value(&mut 0, 1, profile).clicked() {
-                        if let Err(_) = std::process::Command::new("xdg-open")
-                            .arg(PATH_PARTY.join("profiles").join(profile))
-                            .status()
+                for profile in &profiles {
+                    let steamid = ensure_profile_steamid(profile);
+                    ui.horizontal(|ui| {
+                        ui.strong(profile);
+                        ui.label(RichText::new(format!("SteamID {steamid}")).monospace());
+
+                        if ui
+                            .button("✎")
+                            .on_hover_text("Set a specific SteamID (e.g. to match an existing save you're importing)")
+                            .clicked()
+                            && let Ok(Some(input)) = dialog::Input::new(
+                                "Enter SteamID64 (17-digit, e.g. 76561198007525187):",
+                            )
+                            .title(&format!("SteamID for {profile}"))
+                            .show()
+                        {
+                            match input.trim().parse::<u64>() {
+                                Ok(id) if id > STEAMID64_BASE => {
+                                    if let Err(e) = write_profile_steamid(profile, id) {
+                                        msg("Error", &format!("Couldn't write SteamID: {e}"));
+                                    }
+                                }
+                                _ => msg(
+                                    "Invalid SteamID",
+                                    "Must be a 17-digit SteamID64 for an individual account.",
+                                ),
+                            }
+                        }
+
+                        if ui.button("📁").on_hover_text("Open profile folder").clicked()
+                            && std::process::Command::new("xdg-open")
+                                .arg(PATH_PARTY.join("profiles").join(profile))
+                                .status()
+                                .is_err()
                         {
                             msg("Error", "Couldn't open profile directory!");
                         }
-                    };
+
+                        if let Some((_, save_dir)) = &save_ctx {
+                            if profile_has_save(profile, save_dir, steamid) {
+                                ui.colored_label(
+                                    egui::Color32::from_rgb(90, 200, 120),
+                                    "● has save",
+                                );
+                            } else {
+                                ui.colored_label(egui::Color32::GRAY, "○ no save");
+                            }
+                            if ui
+                                .button("⬇ Import save")
+                                .on_hover_text(
+                                    "Copy an existing .co2/.sl2 into this profile's save folder.\nTip: for an existing character, first set this profile's SteamID to the save's original ID.",
+                                )
+                                .clicked()
+                                && let Some(file) = FileDialog::new()
+                                    .set_title(&format!("Pick a save to import for {profile}"))
+                                    .set_directory(&*PATH_HOME)
+                                    .add_filter("Souls save files", &["co2", "sl2"])
+                                    .add_filter("All files", &["*"])
+                                    .pick_file()
+                            {
+                                match import_save_into_profile(profile, save_dir, steamid, &file) {
+                                    Ok(dest) => {
+                                        msg("Imported", &format!("Copied to:\n{}", dest.display()))
+                                    }
+                                    Err(e) => msg("Import failed", &format!("{e}")),
+                                }
+                            }
+                        }
+                    });
                 }
             });
-        if ui.button("New").clicked() {
-            if let Some(name) = dialog::Input::new("Enter name (must be alphanumeric):")
+
+        ui.separator();
+        if ui.button("New Profile").clicked() {
+            if let Ok(Some(name)) = dialog::Input::new("Enter name (must be alphanumeric):")
                 .title("New Profile")
                 .show()
-                .expect("Could not display dialog box")
             {
                 if !name.is_empty() && name.chars().all(char::is_alphanumeric) {
-                    create_profile(&name).unwrap();
+                    if let Err(e) = create_profile(&name) {
+                        msg("Error", &format!("Couldn't create profile: {e}"));
+                    }
                 } else {
                     msg("Error", "Invalid name");
                 }
             }
+            dirty = true;
+        }
+
+        if dirty {
             self.profiles = scan_profiles(false);
         }
     }

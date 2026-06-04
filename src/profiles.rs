@@ -3,6 +3,45 @@ use std::path::PathBuf;
 
 use crate::{handler::Handler, paths::*, util::copy_dir_recursive};
 
+/// Path to a profile's optional EOS display-name override.
+fn profile_eos_name_path(name: &str) -> PathBuf {
+    PATH_PARTY.join(format!("profiles/{name}/eos_username"))
+}
+
+/// A profile's pinned EOS display name, if it has overridden the default (which
+/// is the profile's own name). `None` -> inherit the profile name at launch.
+pub fn read_profile_eos_username(name: &str) -> Option<String> {
+    let s = std::fs::read_to_string(profile_eos_name_path(name)).ok()?;
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+/// Pin (or clear, when `username` is blank) a profile's EOS display-name
+/// override. Clearing reverts the EOS name to the profile name.
+pub fn write_profile_eos_username(name: &str, username: &str) -> Result<(), std::io::Error> {
+    let path = profile_eos_name_path(name);
+    if username.trim().is_empty() {
+        if path.exists() {
+            std::fs::remove_file(&path)?;
+        }
+        return Ok(());
+    }
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&path, username.trim())
+}
+
+/// The effective EOS display name for a profile: its override if set, else the
+/// profile name (guest leading-'.' stripped, matching the in-game name).
+pub fn profile_eos_display(name: &str) -> String {
+    read_profile_eos_username(name).unwrap_or_else(|| name.trim_start_matches('.').to_string())
+}
+
 // Makes a folder and sets up Goldberg Steam Emu profile for Steam games
 pub fn create_profile(name: &str) -> Result<(), std::io::Error> {
     if PATH_PARTY.join(format!("profiles/{name}")).exists() {

@@ -19,6 +19,57 @@ pub enum SDL2Override {
     Sys,
 }
 
+/// Per-handler Epic Online Services configuration. When `enabled`, the game
+/// talks to EOS for multiplayer (lobbies/sessions) rather than Steam, so
+/// PartyDeck drives the Nemirtingas EOS emulator: at launch it generates a
+/// per-instance `NemirtingasEpicEmu.json` next to the game executable (a unique
+/// EOS identity per instance, plus these emulator options) and forces the EOS
+/// SDK DLL to load as native. The user still drops the Nemirtingas
+/// `EOSSDK-Win64-Shipping.dll` into the handler's overlay.
+///
+/// The defaults below are the known-good values for two instances co-op on one
+/// machine (LAN broadcast discovery on, loopback off). They map onto the
+/// Nemirtingas config schema fields the emulator reads.
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+pub struct EosConfig {
+    /// Master switch — does this game use Epic Online Services?
+    pub enabled: bool,
+    /// EOS SDK log verbosity: off / fatal / error / warn / info / debug / trace.
+    /// `trace` also turns on the broadcast plugin log (useful for debugging
+    /// lobby discovery); anything else keeps the emulator quiet.
+    pub log_level: String,
+    /// Cut the emulator's online networking entirely (offline-only).
+    pub disable_online_networking: bool,
+    /// Unlock all DLC/entitlements via the EOS Ecom interface.
+    pub unlock_dlcs: bool,
+    /// Show the (no-op) emulator overlay.
+    pub enable_overlay: bool,
+    /// Default in-game language (EOS locale, e.g. "en").
+    pub language: String,
+    /// Enable the LAN broadcast discovery plugin (how peers find each other's
+    /// lobbies/sessions). Off makes co-op effectively impossible.
+    pub broadcast_enabled: bool,
+    /// Restrict broadcast discovery to loopback (127.0.0.1) only. Most reliable
+    /// for two instances on a single machine; leave off to also advertise on
+    /// the LAN interface (lets a second physical machine join).
+    pub broadcast_localhost_only: bool,
+}
+
+impl Default for EosConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            log_level: "off".to_string(),
+            disable_online_networking: false,
+            unlock_dlcs: true,
+            enable_overlay: false,
+            language: "en".to_string(),
+            broadcast_enabled: true,
+            broadcast_localhost_only: false,
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Handler {
     // Members that are determined by context
@@ -52,6 +103,13 @@ pub struct Handler {
     pub steam_appid: Option<u32>,
 
     pub game_null_paths: Vec<String>,
+
+    /// Epic Online Services / Nemirtingas EOS emulator configuration. See
+    /// [`EosConfig`]. `#[serde(default)]` so older handlers (no `eos` key) load
+    /// fine; `from_json` then auto-enables it for any handler whose overlay
+    /// already ships a `NemirtingasEpicEmu.json`.
+    #[serde(default)]
+    pub eos: EosConfig,
 }
 
 impl Default for Handler {
@@ -81,6 +139,7 @@ impl Default for Handler {
             steam_appid: None,
 
             game_null_paths: Vec::new(),
+            eos: EosConfig::default(),
         }
     }
 }
@@ -98,6 +157,18 @@ impl Handler {
 
         for path in &mut handler.game_null_paths {
             *path = path.sanitize_path();
+        }
+
+        // Backwards-compat: handlers authored before the `eos` key existed (or
+        // that just dropped in the emulator config by hand) won't have
+        // `eos.enabled` set, but if their overlay already ships a
+        // `NemirtingasEpicEmu.json` they are clearly EOS games — turn it on so
+        // they keep getting per-instance EOS identities. Defaults cover the rest.
+        if !handler.eos.enabled
+            && !find_files_named(&handler.path_handler.join("overlay"), "NemirtingasEpicEmu.json")
+                .is_empty()
+        {
+            handler.eos.enabled = true;
         }
 
         Ok(handler)

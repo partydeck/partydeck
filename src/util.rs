@@ -5,7 +5,7 @@ use rfd::FileDialog;
 use std::error::Error;
 use std::fs::{self, File};
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
@@ -259,6 +259,29 @@ pub fn kwin_dbus_unload_script() -> Result<(), Box<dyn Error>> {
 
     println!("[partydeck] util::kwin_dbus_unload_script - Script unloaded.");
     Ok(())
+}
+
+/// Walk `root` recursively, returning the path (relative to `root`) of every
+/// file named `filename`. Returns an empty vec if `root` doesn't exist.
+pub fn find_files_named(root: &Path, filename: &str) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.file_name().and_then(|n| n.to_str()) == Some(filename)
+                && let Ok(rel) = path.strip_prefix(root)
+            {
+                out.push(rel.to_path_buf());
+            }
+        }
+    }
+    out
 }
 
 pub trait SanitizePath {

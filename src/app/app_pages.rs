@@ -96,34 +96,79 @@ impl PartyApp {
 
     pub fn display_page_profiles(&mut self, ui: &mut Ui) {
         ui.heading("Profiles");
+
+        // When the selected game uses EOS, each profile's EOS display name
+        // (defaults to the profile name) can be overridden here.
+        let eos_ctx = self
+            .handlers
+            .get(self.selected_handler)
+            .map(|h| h.eos.enabled)
+            .unwrap_or(false);
         ui.separator();
+
+        let profiles = self.profiles.clone();
+        let mut dirty = false;
+
         egui::ScrollArea::vertical()
-            .max_height(ui.available_height() - 16.0)
+            .max_height(ui.available_height() - 40.0)
             .auto_shrink(false)
             .show(ui, |ui| {
-                for profile in &self.profiles {
-                    if ui.selectable_value(&mut 0, 1, profile).clicked() {
-                        if let Err(_) = std::process::Command::new("xdg-open")
-                            .arg(PATH_PARTY.join("profiles").join(profile))
-                            .status()
+                for profile in &profiles {
+                    ui.horizontal(|ui| {
+                        ui.strong(profile);
+
+                        if ui.button("📁").on_hover_text("Open profile folder").clicked()
+                            && std::process::Command::new("xdg-open")
+                                .arg(PATH_PARTY.join("profiles").join(profile))
+                                .status()
+                                .is_err()
                         {
                             msg("Error", "Couldn't open profile directory!");
                         }
-                    };
+
+                        if eos_ctx {
+                            ui.label(
+                                RichText::new(format!("EOS: {}", profile_eos_display(profile)))
+                                    .weak(),
+                            );
+                            if ui
+                                .button("🎮")
+                                .on_hover_text(
+                                    "Override this profile's EOS display name (blank = use the profile name)",
+                                )
+                                .clicked()
+                                && let Ok(Some(input)) =
+                                    dialog::Input::new("EOS display name (blank = use profile name):")
+                                        .title(&format!("EOS name for {profile}"))
+                                        .show()
+                            {
+                                if let Err(e) = write_profile_eos_username(profile, input.trim()) {
+                                    msg("Error", &format!("Couldn't set EOS name: {e}"));
+                                }
+                            }
+                        }
+                    });
                 }
             });
-        if ui.button("New").clicked() {
-            if let Some(name) = dialog::Input::new("Enter name (must be alphanumeric):")
+
+        ui.separator();
+        if ui.button("New Profile").clicked() {
+            if let Ok(Some(name)) = dialog::Input::new("Enter name (must be alphanumeric):")
                 .title("New Profile")
                 .show()
-                .expect("Could not display dialog box")
             {
                 if !name.is_empty() && name.chars().all(char::is_alphanumeric) {
-                    create_profile(&name).unwrap();
+                    if let Err(e) = create_profile(&name) {
+                        msg("Error", &format!("Couldn't create profile: {e}"));
+                    }
                 } else {
                     msg("Error", "Invalid name");
                 }
             }
+            dirty = true;
+        }
+
+        if dirty {
             self.profiles = scan_profiles(false);
         }
     }
@@ -260,6 +305,51 @@ impl PartyApp {
 
         if h.win() {
             ui.checkbox(&mut h.enable_hidraw, "Enable HIDraw for non-Xbox controllers (fixes Unity Input System games; may cause double input in non-Unity games!)");
+        }
+
+        ui.separator();
+        ui.checkbox(
+            &mut h.eos.enabled,
+            "Uses Epic Online Services (override with Nemirtingas EOS emulator)",
+        )
+        .on_hover_text(
+            "Enable for games whose multiplayer runs on Epic Online Services instead of Steam.\nPartyDeck generates a per-instance EOS identity + config at launch (no hand-edited JSON) and loads the emulator DLL automatically.\nYou still need to drop the Nemirtingas 'EOSSDK-Win64-Shipping.dll' into this handler's overlay, next to the executable.",
+        );
+        if h.eos.enabled {
+            ui.indent("eos_cfg", |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Log level:");
+                    egui::ComboBox::from_id_salt("eos_loglevel")
+                        .selected_text(&h.eos.log_level)
+                        .show_ui(ui, |ui| {
+                            for lvl in
+                                ["off", "fatal", "error", "warn", "info", "debug", "trace"]
+                            {
+                                ui.selectable_value(
+                                    &mut h.eos.log_level,
+                                    lvl.to_string(),
+                                    lvl,
+                                );
+                            }
+                        });
+                    ui.label("Language:");
+                    ui.add(egui::TextEdit::singleline(&mut h.eos.language).desired_width(40.0));
+                });
+                ui.checkbox(
+                    &mut h.eos.broadcast_enabled,
+                    "LAN broadcast discovery (required for lobbies/sessions)",
+                );
+                ui.checkbox(
+                    &mut h.eos.broadcast_localhost_only,
+                    "Loopback-only discovery (most reliable for instances on one machine)",
+                );
+                ui.checkbox(&mut h.eos.unlock_dlcs, "Unlock DLCs");
+                ui.checkbox(
+                    &mut h.eos.disable_online_networking,
+                    "Disable online networking (offline only)",
+                );
+                ui.checkbox(&mut h.eos.enable_overlay, "Enable emulator overlay");
+            });
         }
 
         if !h.win() {

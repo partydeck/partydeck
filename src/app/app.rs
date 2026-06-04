@@ -451,6 +451,17 @@ impl PartyApp {
                     msg("Failed mounting game directories", &format!("{err}"));
                     return;
                 }
+                // Give each instance a distinct Nemirtingas EOS identity (only
+                // does anything for handlers that bundle the emu, and only when
+                // per-instance game dirs were mounted above). Non-fatal: the
+                // static overlay config still provides a working fallback.
+                if handler.is_saved_handler()
+                    && !cfg.disable_mount_gamedirs
+                    && cfg.profile_unique_dirs
+                    && let Err(err) = apply_epic_emu_identities(&handler, &instances)
+                {
+                    println!("[partydeck] Warning: couldn't apply EOS emu identities: {}", err);
+                }
                 if let Err(err) = launch_game(&handler, &dev_infos, &instances, &cfg) {
                     println!("[partydeck] Error launching instances: {}", err);
                     msg("Launch Error", &format!("{err}"));

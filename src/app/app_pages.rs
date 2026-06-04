@@ -335,6 +335,7 @@ impl PartyApp {
                     self.instances.clear();
                     self.input_devices = scan_input_devices(&self.options.pad_filter_type);
                     self.monitors = get_monitors_errorless();
+                    self.audio_sinks = get_audio_sinks();
                     self.profiles = scan_profiles(true);
                     self.instance_add_dev = None;
                     self.cur_page = MenuPage::Instances;
@@ -413,6 +414,7 @@ impl PartyApp {
         ui.separator();
 
         let mut devices_to_remove: Vec<(usize, usize)> = Vec::new();
+        let audio_sinks = self.audio_sinks.clone();
         for (i, instance) in &mut self.instances.iter_mut().enumerate() {
             ui.horizontal(|ui| {
                 ui.label(format!("{}", i + 1));
@@ -425,7 +427,7 @@ impl PartyApp {
                     |i| self.profiles[i].clone(),
                 );
 
-                if self.options.gamescope_sdl_backend {
+                if self.monitors.len() > 1 {
                     ui.label("🖵");
                     egui::ComboBox::from_id_salt(format!("monitors{i}")).show_index(
                         ui,
@@ -434,6 +436,52 @@ impl PartyApp {
                         |i| self.monitors[i].name(),
                     );
                 }
+
+                // Per-instance resolution override, as a monitor-icon toggle.
+                // Off = auto-size from the assigned monitor. Toggling on prefills
+                // that monitor's current resolution so it can be nudged (e.g.
+                // 16:10 panels).
+                let mut overridden = instance.res_override.is_some();
+                if ui
+                    .toggle_value(&mut overridden, "🖥")
+                    .on_hover_text(
+                        "Override render resolution — renders the game at this size and upscales it to fill the monitor.",
+                    )
+                    .changed()
+                {
+                    instance.res_override = if overridden {
+                        let mon = self
+                            .monitors
+                            .get(instance.monitor)
+                            .or_else(|| self.monitors.first());
+                        Some(match mon {
+                            Some(m) => (m.width(), m.height()),
+                            None => (1920, 1080),
+                        })
+                    } else {
+                        None
+                    };
+                }
+                if let Some((mut w, mut h)) = instance.res_override {
+                    ui.add(egui::DragValue::new(&mut w).range(320..=7680).speed(1));
+                    ui.label("×");
+                    ui.add(egui::DragValue::new(&mut h).range(240..=4320).speed(1));
+                    instance.res_override = Some((w, h));
+                }
+
+                ui.label("🔊");
+                egui::ComboBox::from_id_salt(format!("sink{i}"))
+                    .selected_text(if instance.audio_sink.is_empty() {
+                        "Default".to_string()
+                    } else {
+                        instance.audio_sink.clone()
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut instance.audio_sink, String::new(), "Default");
+                        for sink in audio_sinks.iter() {
+                            ui.selectable_value(&mut instance.audio_sink, sink.clone(), sink);
+                        }
+                    });
 
                 if self.instance_add_dev == None {
                     let invitebtn = ui.add(
@@ -474,6 +522,29 @@ impl PartyApp {
             self.remove_device_instance(i, d);
         }
 
+        ui.horizontal(|ui| {
+            if ui.button("🔊 Create Virtual Sink").clicked() {
+                // Lowest free PartyDeck-N index, so removing a middle sink and
+                // re-creating doesn't collide with one that still exists.
+                let n = (1..)
+                    .find(|i| !self.audio_sinks.contains(&format!("PartyDeck-{i}")))
+                    .unwrap_or(1);
+                if let Err(e) = create_virtual_sink(&format!("PartyDeck-{n}")) {
+                    msg("Error", &format!("Couldn't create virtual sink: {e}"));
+                }
+                self.audio_sinks = get_audio_sinks();
+            }
+            if ui.button("Remove PartyDeck Sinks").clicked() {
+                if let Err(e) = remove_virtual_sinks("PartyDeck-") {
+                    msg("Error", &format!("Couldn't remove virtual sinks: {e}"));
+                }
+                self.audio_sinks = get_audio_sinks();
+            }
+            if ui.button("⟳ Refresh Sinks").clicked() {
+                self.audio_sinks = get_audio_sinks();
+            }
+        });
+
         if self.instances.len() > 0 {
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
                 ui.horizontal(|ui| {
@@ -502,6 +573,14 @@ impl PartyApp {
         );
         if enable_kwin_script_check.hovered() {
             self.infotext = "DEFAULT: Enabled\n\n Resizes/repositions instances to fit the screen using a KWin script. If using a desktop environment or window manager other than KDE Plasma, uncheck this; note that you will need to manually resize and reposition the windows.".to_string();
+        }
+
+        let kwin_multimonitor_check = ui.checkbox(
+            &mut self.options.kwin_multimonitor,
+            "(KDE) Place each instance on its assigned monitor (multi-monitor)",
+        );
+        if kwin_multimonitor_check.hovered() {
+            self.infotext = "DEFAULT: Enabled\n\nWhen enabled, the KWin script places each instance on the monitor you assign it in the Instances page (multi-monitor). When disabled, it falls back to classic splitscreen: every window splits whichever single screen it opens on, ignoring monitor assignments. Only applies when the KWin script above is enabled.".to_string();
         }
 
         ui.horizontal(|ui| {

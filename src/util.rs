@@ -261,6 +261,62 @@ pub fn kwin_dbus_unload_script() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+// ---------- Audio sink helpers (PipeWire/PulseAudio via pactl) ----------
+
+/// Names of the available audio sinks, via `pactl list short sinks`. Each name
+/// is suitable for use as a per-instance `PULSE_SINK` value.
+pub fn get_audio_sinks() -> Vec<String> {
+    let mut sinks = Vec::new();
+    let Ok(out) = Command::new("pactl").args(["list", "short", "sinks"]).output() else {
+        return sinks;
+    };
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        // columns: id \t name \t driver \t format \t state
+        if let Some(name) = line.split('\t').nth(1) {
+            if !name.is_empty() {
+                sinks.push(name.to_string());
+            }
+        }
+    }
+    sinks
+}
+
+/// Creates a virtual (null) sink usable as a routing target that can be wired
+/// to real hardware in a patchbay like qpwgraph. No-op if it already exists.
+pub fn create_virtual_sink(name: &str) -> Result<(), Box<dyn Error>> {
+    if get_audio_sinks().iter().any(|s| s == name) {
+        return Ok(());
+    }
+    let status = Command::new("pactl")
+        .args([
+            "load-module",
+            "module-null-sink",
+            &format!("sink_name={name}"),
+            &format!("sink_properties=device.description={name}"),
+        ])
+        .status()?;
+    if !status.success() {
+        return Err("pactl failed to create the virtual sink".into());
+    }
+    Ok(())
+}
+
+/// Unloads every null-sink module whose sink name starts with `prefix`.
+pub fn remove_virtual_sinks(prefix: &str) -> Result<(), Box<dyn Error>> {
+    let out = Command::new("pactl").args(["list", "short", "modules"]).output()?;
+    let needle = format!("sink_name={prefix}");
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        let mut cols = line.split('\t');
+        let id = cols.next().unwrap_or("");
+        let module = cols.next().unwrap_or("");
+        let args = cols.next().unwrap_or("");
+        if module == "module-null-sink" && args.contains(&needle) {
+            let _ = Command::new("pactl").args(["unload-module", id]).status();
+        }
+    }
+    Ok(())
+}
+
 pub trait SanitizePath {
     fn sanitize_path(&self) -> String;
 }

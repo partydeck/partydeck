@@ -39,6 +39,7 @@ pub struct PartyApp {
     pub infotext: String,
 
     pub monitors: Vec<Monitor>,
+    pub audio_sinks: Vec<String>,
     pub input_devices: Vec<InputDevice>,
     pub instances: Vec<Instance>,
     pub instance_add_dev: Option<usize>,
@@ -82,6 +83,7 @@ impl PartyApp {
             settings_page: SettingsPage::General,
             infotext: String::new(),
             monitors,
+            audio_sinks: get_audio_sinks(),
             input_devices,
             instances: Vec::new(),
             instance_add_dev: None,
@@ -307,13 +309,23 @@ impl PartyApp {
                             }
                         }
                         None => {
+                            // Default each new instance onto its own monitor
+                            // (instance 0 -> monitor 0, instance 1 -> monitor 1,
+                            // ...), capped to the available monitors. Still
+                            // overridable per-instance via the 🖵 dropdown.
+                            let mon = self
+                                .instances
+                                .len()
+                                .min(self.monitors.len().saturating_sub(1));
                             self.instances.push(Instance {
                                 devices: vec![i],
                                 profname: String::new(),
                                 profselection: 0,
-                                monitor: 0,
+                                monitor: mon,
+                                audio_sink: String::new(),
                                 width: 0,
                                 height: 0,
+                                res_override: None,
                             });
                         }
                     }
@@ -408,15 +420,9 @@ impl PartyApp {
     }
 
     pub fn prepare_game_launch(&mut self) {
-        if self.options.gamescope_sdl_backend {
-            set_instance_resolutions_multimonitor(
-                &mut self.instances,
-                &self.monitors,
-                &self.options,
-            );
-        } else {
-            set_instance_resolutions(&mut self.instances, &self.monitors[0], &self.options);
-        }
+        // Size each instance to its assigned monitor regardless of backend.
+        // (Single-monitor setups simply have every instance on monitor 0.)
+        set_instance_resolutions_multimonitor(&mut self.instances, &self.monitors, &self.options);
         set_instance_names(&mut self.instances, &self.profiles);
 
         let handler = if let Some(h) = self.handler_lite.clone() {

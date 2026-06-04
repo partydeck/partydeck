@@ -8,8 +8,15 @@ pub struct Instance {
     pub profname: String,
     pub profselection: usize,
     pub monitor: usize,
+    /// Audio sink name for this instance's `PULSE_SINK` ("" = system default).
+    pub audio_sink: String,
     pub width: u32,
     pub height: u32,
+    /// Manual per-instance render-resolution override. `None` = render at the
+    /// monitor/tile size (default). `Some((w, h))` makes the game render at w×h
+    /// (gamescope `-w/-h`) while still being upscaled to fill the assigned
+    /// monitor (gamescope `-W/-H`) — e.g. force 1600×900 on a 1920×1200 screen.
+    pub res_override: Option<(u32, u32)>,
 }
 
 pub fn set_instance_resolutions(
@@ -37,6 +44,9 @@ pub fn set_instance_resolutions(
             h = 600;
             w = (h as f32 * ratio) as u32;
         }
+        // res_override drives the gamescope *nested* render size (-w/-h) in
+        // launch.rs; the output (-W/-H) stays at the monitor size so the window
+        // still fills the screen.
         instance.width = w;
         instance.height = h;
     }
@@ -76,6 +86,9 @@ pub fn set_instance_resolutions_multimonitor(
             h = 600;
             w = (h as f32 * ratio) as u32;
         }
+        // res_override drives the gamescope *nested* render size (-w/-h) in
+        // launch.rs; the output (-W/-H) stays at the monitor size so the window
+        // still fills the screen.
         instance.width = w;
         instance.height = h;
     }

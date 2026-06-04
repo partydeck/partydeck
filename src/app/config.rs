@@ -22,6 +22,12 @@ fn default_true() -> bool {
 pub struct PartyConfig {
     #[serde(default = "default_true")]
     pub enable_kwin_script: bool,
+    /// KWin placement mode. `true` (default): assign each instance to its chosen
+    /// monitor (multi-monitor). `false`: classic single-screen splitscreen —
+    /// ignore assignments and tile windows on whatever screen KWin opens them
+    /// on (the original upstream behavior).
+    #[serde(default = "default_true")]
+    pub kwin_multimonitor: bool,
     #[serde(default = "default_true")]
     pub gamescope_fix_lowres: bool,
     #[serde(default = "default_true")]
@@ -54,6 +60,7 @@ impl Default for PartyConfig {
     fn default() -> Self {
         PartyConfig {
             enable_kwin_script: true,
+            kwin_multimonitor: true,
             gamescope_fix_lowres: true,
             gamescope_sdl_backend: true,
             gamescope_force_grab_cursor: false,

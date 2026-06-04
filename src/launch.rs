@@ -45,7 +45,23 @@ pub fn launch_game(
             false => "splitscreen_kwin.js",
         };
 
-        kwin_dbus_start_script(PATH_RES.join(script)).map_err(|e| format!("Failed to start KWin script: {}", e))?;
+        // Bake the per-instance monitor assignment into the script so KWin can
+        // place each gamescope window on its assigned screen (the SDL backend's
+        // --display-index doesn't apply on the Wayland backend). PARTYDECK_USE_
+        // ASSIGNMENTS selects multi-monitor placement vs classic splitscreen.
+        let assignments: Vec<String> = instances.iter().map(|i| i.monitor.to_string()).collect();
+        let template = std::fs::read_to_string(PATH_RES.join(script))
+            .map_err(|e| format!("Failed to read KWin script: {}", e))?;
+        let generated = template
+            .replace("PARTYDECK_ASSIGNMENTS", &format!("[{}]", assignments.join(", ")))
+            .replace("PARTYDECK_USE_ASSIGNMENTS", &cfg.kwin_multimonitor.to_string());
+        std::fs::create_dir_all(PATH_PARTY.join("tmp"))
+            .map_err(|e| format!("Failed to create tmp dir: {}", e))?;
+        let active_script = PATH_PARTY.join("tmp").join("splitscreen_active.js");
+        std::fs::write(&active_script, generated)
+            .map_err(|e| format!("Failed to write KWin script: {}", e))?;
+
+        kwin_dbus_start_script(active_script).map_err(|e| format!("Failed to start KWin script: {}", e))?;
     }
 
     let sleep_time = match h.pause_between_starts {
@@ -109,6 +125,14 @@ pub fn launch_cmds(
             && !PATH_STEAM.join("steam/steamapps/common/SteamLinuxRuntime_4").exists())
     {
         return Err(format!("Steam Runtime {runtime} not found! Runtime must be installed on the same drive that the Steam client is installed on.").into());
+    }
+
+    // Empty directory used to mask out a handler's `game_null_paths` entries
+    // that are directories (bind-mounted over them via bwrap). bwrap requires
+    // the bind source to exist, and clear_tmp() wipes tmp/ after every run, so
+    // (re)create it here or directory masking silently fails to launch.
+    if !h.game_null_paths.is_empty() {
+        let _ = std::fs::create_dir_all(PATH_PARTY.join("tmp/null"));
     }
 
     let mut cmds: Vec<Command> = (0..instances.len())
@@ -186,6 +210,10 @@ pub fn launch_cmds(
                 }
             }
         }
+        // Route this instance's audio to its chosen sink (PipeWire/PulseAudio).
+        if !instance.audio_sink.is_empty() {
+            cmd.env("PULSE_SINK", &instance.audio_sink);
+        }
 
         // Gamescope args
         if h.use_mangohud {
@@ -197,12 +225,24 @@ pub fn launch_cmds(
             "-H",
             &instance.height.to_string(),
         ]);
+        // Optional render-resolution override: gamescope renders the game at
+        // this size and upscales it to the output (-W/-H = the full monitor).
+        if let Some((rw, rh)) = instance.res_override {
+            cmd.args(["-w", &rw.to_string(), "-h", &rh.to_string()]);
+        }
         if cfg.gamescope_force_grab_cursor {
             cmd.arg("--force-grab-cursor");
         }
         if cfg.gamescope_sdl_backend {
             cmd.arg("--backend=sdl");
             cmd.arg(format!("--display-index={}", instance.monitor));
+        } else if cfg.enable_kwin_script {
+            // With the KWin script doing per-monitor placement, use the Wayland
+            // backend (the SDL backend falls back to a headless/dying window on
+            // some NVIDIA/KDE setups). Without the KWin script there's nothing to
+            // place the windows, so let gamescope pick its own backend rather
+            // than forcing Wayland on every setup.
+            cmd.arg("--backend=wayland");
         }
         if cfg.kbm_support {
             let mut instance_has_keyboard = false;
@@ -374,17 +414,33 @@ pub fn launch_cmds(
 
         cmd.arg(&path_exec);
 
+        let (render_w, render_h) = instance
+            .res_override
+            .unwrap_or((instance.width, instance.height));
         for arg in h.args.split_whitespace() {
-            let processed_arg = match arg {
-                "$PROFILE" => &instance.profname,
-                "$WIDTH" => &instance.width.to_string(),
-                "$HEIGHT" => &instance.height.to_string(),
-                "$RESOLUTION" => &format!("{}x{}", instance.width, instance.height),
-                "$INSTANCECOUNT" => &instances.len().to_string(),
-                "$INSTANCENUM" => &i.to_string(),
-                "$GAMEDIR" => &gamedir.os_fmt(win),
-                "$HANDLERDIR" => &h.path_handler.os_fmt(win),
-                _ => &String::from(arg).sanitize_path(),
+            // Substring substitution so tokens can be embedded inside an arg,
+            // e.g. "-ResX=$WIDTH" -> "-ResX=1600" (Unreal Engine games).
+            let processed_arg = if arg.contains('$') {
+                let substituted = arg
+                    .replace("$PROFILE", &instance.profname)
+                    .replace("$WIDTH", &render_w.to_string())
+                    .replace("$HEIGHT", &render_h.to_string())
+                    .replace("$RESOLUTION", &format!("{}x{}", render_w, render_h))
+                    .replace("$INSTANCECOUNT", &instances.len().to_string())
+                    .replace("$INSTANCENUM", &i.to_string())
+                    .replace("$GAMEDIR", &gamedir.os_fmt(win))
+                    .replace("$HANDLERDIR", &h.path_handler.os_fmt(win));
+                // The path tokens expand to real, already-formatted paths that
+                // must pass through verbatim; every other arg is sanitized like
+                // the no-token branch (so e.g. -ResX=$WIDTH keeps the same
+                // cleaning it had before substitution was added).
+                if arg.contains("$GAMEDIR") || arg.contains("$HANDLERDIR") {
+                    substituted
+                } else {
+                    substituted.sanitize_path()
+                }
+            } else {
+                String::from(arg).sanitize_path()
             };
             cmd.arg(processed_arg);
         }

@@ -1,62 +1,33 @@
 name: CI (Holo / Steam Deck)
-# Builds against SteamOS Holo's glibc (2.41) so binaries run on the Deck.
-# Arch builds link glibc 2.43 and fail on-device with `GLIBC_2.43 not found`.
 on:
   workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/steamdeckhomebrew/holo-toolchain-rust:latest
-    env:
-      RUSTUP_HOME: /.rustup
-      CARGO_HOME: /.cargo
     steps:
-      - name: Prepare
-        run: |
-          export PATH="/.cargo/bin:$PATH"
-          pacman-key --init || true
-          # Mirror the Arch package list, with two holo-specific fixes:
-          #   - wlroots0.18 dropped (gamescope fork vendors wlroots as a meson
-          #     subproject via force_fallback_for=wlroots; not in holo repos).
-          #   - pkg-config -> pkgconf (real package name; Provides: pkg-config).
-          pacman -Sy --noconfirm --needed \
-            git meson clang glslang libcap sdl2 vulkan-headers \
-            libx11 libxmu libxcomposite libxrender libxres libxtst libxkbcommon \
-            libdrm libinput wayland-protocols benchmark xorg-xwayland pipewire \
-            lcms2 hwdata seatd xcb-util-wm xcb-util-errors \
-            cmake libavif libheif aom rav1e libdecor libxdamage luajit libva \
-            libxss wget curl xorg-server-xvfb fuse-overlayfs bubblewrap zsync \
-            pulseaudio pipewire-audio alsa-plugins libxkbcommon-x11 libvdpau \
-            libvdpau-va-gl sudo pkgconf openssl zip base-devel
-          rustup default stable
-
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Build partydeck
+      - name: Build Holo image
         run: |
-          export PATH="/.cargo/bin:$PATH"
-          cargo build --release -F build_gamescope -F download_deps
+          docker build \
+            --build-arg UID=$(id -u) \
+            --build-arg GID=$(id -g) \
+            -t partydeck-holo \
+            -f dist/Dockerfile.holo .
 
-      - name: Assemble output
-        run: |
-          mkdir -p partydeck
-          cp target/release/partydeck partydeck/partydeck
-          cp -r target/release/res partydeck/res
-          cp -r target/release/bin partydeck/bin
-          cp res/GamingModeLauncher.sh partydeck/GamingModeLauncher.sh
-          cp LICENSE partydeck/LICENSE
-          cp COPYING.md partydeck/thirdparty.txt
+      - name: Build release skeleton
+        run: docker run --rm -v "$PWD:/workspace" partydeck-holo
 
       - name: Create tarball
         run: |
-          tar -czf "partydeck-HOLO-steamdeck-x86_64.tar.gz" partydeck/
+          tar -czf "partydeck-HOLO-TEST-steamdeck-x86_64.tar.gz" \
+              -C dist/build/holo release/
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: built-binaries-holo
           path: |
-            partydeck-HOLO-steamdeck-x86_64.tar.gz
+            partydeck-HOLO-TEST-steamdeck-x86_64.tar.gz

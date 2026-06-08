@@ -1,5 +1,14 @@
 # PartyDeck build image targeting the Steam Deck's SteamOS Holo runtime.
-FROM ghcr.io/steamdeckhomebrew/holo-toolchain-rust:latest AS base
+# Pinned build image for security.
+
+# Run below from project root.
+# Build: docker build -t partydeck-holo -f dist/Dockerfile.holo .
+# Run:   docker run --rm -v "$(pwd):/workspace" partydeck-holo
+#
+# Override UID/GID if needed:
+#   docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g)
+
+FROM ghcr.io/steamdeckhomebrew/holo-toolchain-rust@sha256:818de45e147f35798c66498380b31bd1fe8bf75afdf0a22b027053706836faf1 AS base
 
 # holo-toolchain-rust already provides rustup + a stable toolchain and sets
 # RUSTUP_HOME=/.rustup CARGO_HOME=/.cargo. Make cargo/rustc visible on PATH for
@@ -19,6 +28,9 @@ RUN pacman -Sy --noconfirm --needed \
         libvdpau-va-gl sudo pkgconf openssl zip base-devel \
     && yes | pacman -Scc
 
+# Base image's libpipewire install skipped headers due to file conflicts. Force reinstall to populate /usr/include.
+RUN pacman -S --noconfirm --overwrite '*' libpipewire
+
 FROM base AS runtime
 
 ARG UID=1000
@@ -34,6 +46,6 @@ RUN groupadd -g "$GID" appgroup 2>/dev/null || true; \
 USER appuser
 WORKDIR /workspace
 
-# Build into a fresh target dir by default so a host target/ from a different
-# toolchain doesn't poison the holo build.
-CMD ["bash", "-c", "export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$(mktemp -d)} && cargo build --release -F build_gamescope -F download_deps && ./dist/build_appimage.sh"]
+# Drops the full release skeleton into dist/build/holo/release/ on the bind-mounted workspace
+ENV BUILD_NAME=holo
+CMD ["bash", "dist/build_dist.sh"]

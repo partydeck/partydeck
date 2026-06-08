@@ -9,3 +9,4 @@ res/gamescope
 gen_release.sh
 handler.json
 /dist/*generated/**
+/dist/build/

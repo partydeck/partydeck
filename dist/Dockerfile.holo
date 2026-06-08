@@ -1,0 +1,39 @@
+# PartyDeck build image targeting the Steam Deck's SteamOS Holo runtime.
+FROM ghcr.io/steamdeckhomebrew/holo-toolchain-rust:latest AS base
+
+# holo-toolchain-rust already provides rustup + a stable toolchain and sets
+# RUSTUP_HOME=/.rustup CARGO_HOME=/.cargo. Make cargo/rustc visible on PATH for
+# all later stages and the runtime user.
+ENV RUSTUP_HOME=/.rustup \
+    CARGO_HOME=/.cargo \
+    PATH=/.cargo/bin:$PATH
+
+RUN pacman -Sy --noconfirm --needed \
+        git meson clang glslang libcap sdl2 vulkan-headers \
+        libx11 libxmu libxcomposite libxrender libxres libxtst libxkbcommon \
+        libdrm libinput wayland-protocols benchmark xorg-xwayland pipewire \
+        lcms2 hwdata seatd xcb-util-wm xcb-util-errors \
+        cmake libavif libheif aom rav1e libdecor libxdamage luajit libva \
+        libxss wget curl xorg-server-xvfb fuse-overlayfs bubblewrap zsync \
+        pulseaudio pipewire-audio alsa-plugins libxkbcommon-x11 libvdpau \
+        libvdpau-va-gl sudo pkgconf openssl zip base-devel \
+    && yes | pacman -Scc
+
+FROM base AS runtime
+
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd -g "$GID" appgroup 2>/dev/null || true; \
+    useradd -m -u "$UID" -g "$GID" appuser 2>/dev/null || true; \
+    usermod -aG wheel appuser; \
+    echo "%wheel ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/wheel; \
+    chmod 0440 /etc/sudoers.d/wheel; \
+    chown -R "$UID":"$GID" /.cargo /.rustup
+
+USER appuser
+WORKDIR /workspace
+
+# Build into a fresh target dir by default so a host target/ from a different
+# toolchain doesn't poison the holo build.
+CMD ["bash", "-c", "export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$(mktemp -d)} && cargo build --release -F build_gamescope -F download_deps && ./dist/build_appimage.sh"]

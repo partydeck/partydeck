@@ -142,6 +142,8 @@ fn build_gamescope(deps_dir: &Path, target_dir: &PathBuf) {
             .arg(&build_dir)
             .arg("-Dinput_emulation=disabled")
             .arg("-Dbenchmark=disabled")
+            // PipeWire screen-capture is unused by partydeck, disable it explicitly to stay buildable on-device
+            .arg("-Dpipewire=disabled")
             .arg("--auto-features=enabled")
             .env("CC", "gcc")
             .env("CXX", "g++")

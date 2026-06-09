@@ -6,17 +6,14 @@ on:
       - "v*"
 
 jobs:
-  build:
+  # SteamOS-targeted tarball: built on Holo so binaries link against the Deck's packages.
+  build-tarball:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # SteamOS-targeted tarball: built on Holo so binaries link against the Deck's packages.
       - name: Build Holo image
         run: |
           docker build \
@@ -34,8 +31,22 @@ jobs:
           tar -czf "partydeck-${TAG}-steamos-x86_64.tar.gz" \
               -C dist/build/holo release/
 
-      # AppImage bundles its own libs via sharun, so it's OS-agnostic. Built
-      # on Arch because Holo lacks the gcc-libs packaging.
+      - name: Upload tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: tarball
+          path: partydeck-*-steamos-x86_64.tar.gz
+          if-no-files-found: error
+
+  # AppImage bundles its own libs via sharun, so it's OS-agnostic. Built
+  # on Arch because Holo lacks the gcc-libs packaging.
+  build-appimage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
       - name: Build Arch image
         run: |
           docker build \
@@ -52,6 +63,24 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           cp dist/appimage_generated/partydeck-anylinux-x86_64.AppImage \
              "partydeck-${TAG}-anylinux-x86_64.AppImage"
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: partydeck-*-anylinux-x86_64.AppImage
+          if-no-files-found: error
+
+  release:
+    needs: [build-tarball, build-appimage]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

@@ -23,16 +23,13 @@ struct Dep {
 
 #[cfg(feature = "download_deps")]
 const DEPS: &[Dep] = &[
-    // Linux Goldberg pinned to release-2025_10_29 (the v0.8.5 era). Newer
-    // releases regress L4D2 — 2026-03-10 `regular` aborts in SteamAPI_Init.
-    // Re-validate on the Steam Deck before bumping.
     Dep {
         repo: "Detanup01/gbe_fork",
         asset_contains: "emu-linux-release.tar.bz2",
         archive_name: "emu-linux-release.tar.bz2",
         format: ArchFmt::TarBz2,
-        static_url: "https://github.com/Detanup01/gbe_fork/releases/download/release-2025_10_29/emu-linux-release.tar.bz2",
-        static_hash: "9209283089f6febd9c28ece554ad6d3199eaea303c81f23409d6f64c85c9ba91",
+        static_url: "https://github.com/Detanup01/gbe_fork/releases/download/release-2026_03_10/emu-linux-release.tar.bz2",
+        static_hash: "032500ca100b72fd2daa94eec3263cf7c6fe63487623f9e28d70eee41a58bb01",
         marker: "gbe-linux/regular/x64/steamclient.so",
         rename_from: Some("gbe-linux"),
     },
@@ -60,7 +57,7 @@ const DEPS: &[Dep] = &[
 
 // (src relative to project root, dst relative to target dir)
 const BUNDLE: &[(&str, &str)] = &[
-    // goldberg linux (from the pinned release-2025_10_29 download — see DEPS)
+    // goldberg linux
     ("deps/releases/gbe-linux/regular/x64/steamclient.so", "res/goldberg/linux64/steamclient.so"),
     ("deps/releases/gbe-linux/regular/x32/steamclient.so", "res/goldberg/linux32/steamclient.so"),
     // goldberg windows

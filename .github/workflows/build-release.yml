@@ -29,6 +29,7 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           tar -czf "partydeck-${TAG}-steamos-x86_64.tar.gz" \
+              --transform='s,^release,partydeck,' \
               -C dist/build/holo release/
 
       - name: Upload tarball

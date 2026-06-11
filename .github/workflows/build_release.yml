@@ -1,0 +1,114 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-base:
+    runs-on: ubuntu-latest
+    container: ghcr.io/steamdeckhomebrew/holo-toolchain-rust@sha256:818de45e147f35798c66498380b31bd1fe8bf75afdf0a22b027053706836faf1
+
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman-key --init
+          pacman -Syu --noconfirm
+          pacman -Sy --noconfirm --needed \
+              git meson clang glslang libcap sdl2 vulkan-headers \
+              libx11 libxmu libxcomposite libxrender libxres libxtst libxkbcommon \
+              libdrm libinput wayland-protocols benchmark xorg-xwayland pipewire \
+              lcms2 hwdata seatd xcb-util-wm xcb-util-errors \
+              cmake libavif libheif aom rav1e libdecor libxdamage luajit libva \
+              libxss wget curl xorg-server-xvfb fuse-overlayfs bubblewrap zsync \
+              pulseaudio pipewire-audio alsa-plugins libxkbcommon-x11 libvdpau \
+              libvdpau-va-gl sudo pkgconf openssl zip base-devel \
+          && pacman -S --noconfirm --overwrite '*' libpipewire \
+          && yes | pacman -Scc
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build partydeck
+        run: |
+          export BUILD_NAME="partydeck-CI"
+          ./dist/build_dist.sh
+          mv ./dist/build_generated/partydeck-CI/release partydeck
+
+      - name: Create tarball
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          tar -czf "partydeck-${TAG}-linux-x86_64.tar.gz" partydeck/
+
+      - name: Upload base executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: partydeck-CI-base-executable
+          path: partydeck-*-linux-x86_64.tar.gz
+  
+  build-appimage:
+    needs: build-base
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+
+    steps:
+      - name: Prepare
+        run: |
+          pacman-key --init
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed \
+            git meson rust cargo clang glslang libcap wlroots0.18 sdl2 \
+            vulkan-headers libx11 libxmu libxcomposite libxrender libxres \
+            libxtst libxkbcommon libdrm libinput wayland-protocols benchmark \
+            xorg-xwayland pipewire cmake libavif libheif aom rav1e libdecor libxdamage \
+            luajit libva libxss wget curl xorg-server-xvfb fuse-overlayfs bubblewrap \
+            libxkbcommon zsync pipewire pulseaudio pipewire-audio alsa-plugins \
+            libxkbcommon-x11 libvdpau libvdpau-va-gl sudo pkg-config openssl zip libdisplay-info
+
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: partydeck-CI-base-executable
+
+      - name: Extract base build
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          tar -xzf partydeck-${TAG}-linux-x86_64.tar.gz
+
+      - name: Build appimage
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          ln -s /usr/lib/libdisplay-info.so /usr/lib/libdisplay-info.so.2 || true
+          export RELEASE_BUNDLE_DIR=../../partydeck
+          ./dist/build_appimage.sh
+          cp ./dist/appimage_generated/partydeck-anylinux-x86_64.AppImage partydeck-${TAG}-anylinux-x86_64.AppImage
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: partydeck-CI-appimage
+          path: partydeck-*-anylinux-x86_64.AppImage
+
+  finalize-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: [ build-base, build-appimage ]
+
+    steps:
+      - name: Download base executable
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            partydeck-*-linux-x86_64.tar.gz
+            partydeck-*-anylinux-x86_64.AppImage
+          generate_release_notes: true

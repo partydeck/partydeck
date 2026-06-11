@@ -1,20 +1,23 @@
 # PartyDeck build image targeting the Steam Deck's SteamOS Holo runtime.
-# Pinned build image for security.
 
 # Run below from project root.
-# Build: docker build -t partydeck-holo -f dist/Dockerfile.holo .
-# Run:   docker run --rm -v "$(pwd):/workspace" partydeck-holo
+# Build: docker build -t partydeck-holo-build -f dist/Dockerfile.holo .
+# Run:   docker run --rm -v "$(pwd):/workspace" partydeck-holo-build
 #
 # Override UID/GID if needed:
 #   docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g)
 
+# Can use latest if you trust it. Here pining to exact version just so known trusted base.
 FROM ghcr.io/steamdeckhomebrew/holo-toolchain-rust@sha256:818de45e147f35798c66498380b31bd1fe8bf75afdf0a22b027053706836faf1 AS base
 
 # holo-toolchain-rust already provides rustup + a stable toolchain and sets
 # RUSTUP_HOME=/.rustup CARGO_HOME=/.cargo. Make cargo/rustc visible on PATH for
 # all later stages and the runtime user.
+
+# Add the following to disable cargo cache.
+# ENV CARGO_HOME=/.cargo
+
 ENV RUSTUP_HOME=/.rustup \
-    CARGO_HOME=/.cargo \
     PATH=/.cargo/bin:$PATH
 
 RUN pacman -Sy --noconfirm --needed \

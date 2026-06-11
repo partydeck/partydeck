@@ -1,13 +1,14 @@
 #!/bin/sh
-# Build the partydeck release skeleton into dist/build/$BUILD_NAME/release/
+# Build the partydeck release skeleton into dist/build_generated/$BUILD_NAME/release/
 # Run from the repo root
 set -eu
 
 BUILD_NAME="${BUILD_NAME:-native}"
 
-BUILD_DIR="dist/build/$BUILD_NAME"
+BUILD_DIR="${BUILD_DIR:-dist/build_generated/$BUILD_NAME}"
 RELEASE_DIR="$BUILD_DIR/release"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/$BUILD_DIR/target}"
+export CARGO_HOME="${CARGO_HOME:-$PWD/$BUILD_DIR/home}"
 
 # Fresh release dir every run. target/ sibling persists for cargo's incremental cache
 rm -rf "$RELEASE_DIR"

@@ -14,20 +14,20 @@ jobs:
           docker build \
             --build-arg UID=$(id -u) \
             --build-arg GID=$(id -g) \
-            -t partydeck-holo \
+            -t partydeck-holo-build \
             -f dist/Dockerfile.holo .
 
       - name: Build release skeleton
-        run: docker run --rm -v "$PWD:/workspace" partydeck-holo
+        run: docker run --rm -v "$PWD:/workspace" partydeck-holo-build
 
       - name: Create tarball
         run: |
-          tar -czf "partydeck-HOLO-TEST-steamdeck-x86_64.tar.gz" \
-              -C dist/build/holo release/
+          tar -czf "partydeck-UNOFFICIAL-HOLO-TEST-steamdeck-x86_64.tar.gz" \
+              -C dist/build_generated/holo release/
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: built-binaries-holo
+          name: built-UNOFFICIAL-binaries-holo
           path: |
-            partydeck-HOLO-TEST-steamdeck-x86_64.tar.gz
+            partydeck-UNOFFICIAL-HOLO-TEST-steamdeck-x86_64.tar.gz

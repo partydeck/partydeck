@@ -2,7 +2,8 @@
 
 # You might need to restart your pc if sharun doesn't create `AppDir` in this directory (It should create dirs on its own)
 
-# Grab release from https://github.com/wunnr/partydeck/releases and extract it to the same dir as this .sh file
+# Grab release from https://github.com/wunnr/partydeck/releases and extract it to the same dir as this .sh file, ran with export RELEASE_BUNDLE_DIR=../EXTRACTED_FOLDER_NAME
+# Or just using rust build and run the script, where we will use the latest release build verison.
 set -eu
 
 cd dist;
@@ -26,7 +27,8 @@ export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 export STRIP=1
 
-: ${CARGO_TARGET_DIR:=../../target}
+
+: ${RELEASE_BUNDLE_DIR:=../../target/release}
 
 # ADD LIBRARIES
 wget --retry-connrefused --tries=30 "$DEBLOATED_PKGS" -O ./get-debloated-pkgs
@@ -38,11 +40,11 @@ chmod +x ./quick-sharun
 ./get-debloated-pkgs --add-mesa --add-vulkan
 
 # Point to binaries
-./quick-sharun $CARGO_TARGET_DIR/release/partydeck $CARGO_TARGET_DIR/release/bin/gamescope-kbm $CARGO_TARGET_DIR/release/bin/gamescopereaper $CARGO_TARGET_DIR/release/bin/umu-run /usr/bin/fuse-overlayfs /usr/bin/bwrap /usr/bin/zip
+./quick-sharun $RELEASE_BUNDLE_DIR/partydeck $RELEASE_BUNDLE_DIR/bin/gamescope-kbm $RELEASE_BUNDLE_DIR/bin/gamescopereaper $RELEASE_BUNDLE_DIR/bin/umu-run /usr/bin/fuse-overlayfs /usr/bin/bwrap /usr/bin/zip
 
 # Res
 mkdir -p ./AppDir/share/partydeck
-cp -r $CARGO_TARGET_DIR/release/res/* ./AppDir/share/partydeck
+cp -r $RELEASE_BUNDLE_DIR/res/* ./AppDir/share/partydeck
 
 # Make AppImage
 ./quick-sharun --make-appimage

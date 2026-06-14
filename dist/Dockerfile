@@ -1,38 +1,31 @@
-# PartyDeck build image targeting the Steam Deck's SteamOS Holo runtime.
+# Builds both release artifacts (skeleton + AppImage) against SteamOS Holo glibc.
+#   Build:    docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t partydeck-build -f dist/Dockerfile .
+#   Skeleton: docker run --rm -v "$PWD:/workspace" partydeck-build
+#   + AppImage: docker run --rm -v "$PWD:/workspace" partydeck-build bash dist/scripts/build_all.sh
 
-# Run below from project root.
-# Build: docker build -t partydeck-holo-build -f dist/Dockerfile.holo .
-# Run:   docker run --rm -v "$(pwd):/workspace" partydeck-holo-build
-#
-# Override UID/GID if needed:
-#   docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g)
-
-# Can use latest if you trust it. Here pining to exact version just so known trusted base.
+# Pinned for reproducibility / security
 FROM ghcr.io/steamdeckhomebrew/holo-toolchain-rust@sha256:818de45e147f35798c66498380b31bd1fe8bf75afdf0a22b027053706836faf1 AS base
 
-# holo-toolchain-rust already provides rustup + a stable toolchain and sets
-# RUSTUP_HOME=/.rustup CARGO_HOME=/.cargo. Make cargo/rustc visible on PATH for
-# all later stages and the runtime user.
-
-# Add the following to disable cargo cache.
-# ENV CARGO_HOME=/.cargo
-
+# Image sets RUSTUP_HOME/CARGO_HOME=/.rustup,/.cargo; put cargo on PATH.
 ENV RUSTUP_HOME=/.rustup \
     PATH=/.cargo/bin:$PATH
 
+# libpipewire is reinstalled with --overwrite: the base image skips its headers on a file conflict.
 RUN pacman -Sy --noconfirm --needed \
         git meson clang glslang libcap sdl2 vulkan-headers \
         libx11 libxmu libxcomposite libxrender libxres libxtst libxkbcommon \
         libdrm libinput wayland-protocols benchmark xorg-xwayland pipewire \
-        lcms2 hwdata seatd xcb-util-wm xcb-util-errors \
+        lcms2 hwdata seatd xcb-util-wm xcb-util-errors libdisplay-info \
         cmake libavif libheif aom rav1e libdecor libxdamage luajit libva \
         libxss wget curl xorg-server-xvfb fuse-overlayfs bubblewrap zsync \
         pulseaudio pipewire-audio alsa-plugins libxkbcommon-x11 libvdpau \
         libvdpau-va-gl sudo pkgconf openssl zip base-devel \
+    && pacman -S --noconfirm --overwrite '*' libpipewire \
     && yes | pacman -Scc
 
-# Base image's libpipewire install skipped headers due to file conflicts. Force reinstall to populate /usr/include.
-RUN pacman -S --noconfirm --overwrite '*' libpipewire
+# Lets build_appimage.sh's debloated packages install here: see dist/scripts/pacman_shim.sh.
+COPY dist/scripts/pacman_shim.sh /usr/local/bin/pacman
+RUN chmod +x /usr/local/bin/pacman
 
 FROM base AS runtime
 
@@ -49,6 +42,7 @@ RUN groupadd -g "$GID" appgroup 2>/dev/null || true; \
 USER appuser
 WORKDIR /workspace
 
-# Drops the full release skeleton into dist/build/holo/release/ on the bind-mounted workspace
 ENV BUILD_NAME=holo
-CMD ["bash", "dist/build_dist.sh"]
+
+# Default: skeleton only. Override the command to also build the AppImage.
+CMD ["bash", "dist/scripts/build_dist.sh"]

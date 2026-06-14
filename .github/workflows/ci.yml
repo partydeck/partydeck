@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ['**']
+    tags-ignore: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/steamdeckhomebrew/holo-toolchain-rust@sha256:818de45e147f35798c66498380b31bd1fe8bf75afdf0a22b027053706836faf1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build
+        id: build
+        uses: ./.github/actions/build-partydeck
+        with:
+          version: UNOFFICIAL
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: partydeck-UNOFFICIAL-${{ github.sha }}
+          path: |
+            ${{ steps.build.outputs.tarball }}
+            ${{ steps.build.outputs.appimage }}

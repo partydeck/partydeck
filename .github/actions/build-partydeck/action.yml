@@ -1,0 +1,65 @@
+name: Build PartyDeck
+description: >
+  Build the Holo release tarball and the AppImage inside the Holo toolchain
+  container. Assumes the job already declared the holo-toolchain-rust container
+  and checked out the repo with submodules. Caches cargo + pacman.
+
+inputs:
+  version:
+    description: Version string embedded in artifact filenames (e.g. v1.2.3 or UNOFFICIAL).
+    required: true
+
+outputs:
+  tarball:
+    description: Path to the produced release tarball.
+    value: partydeck-${{ inputs.version }}-steamdeck-x86_64.tar.gz
+  appimage:
+    description: Path to the produced AppImage.
+    value: partydeck-${{ inputs.version }}-anylinux-x86_64.AppImage
+
+runs:
+  using: composite
+  steps:
+    - name: Cache pacman packages
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/pacman/pkg
+        key: pacman-holo-${{ hashFiles('dist/Dockerfile') }}
+        restore-keys: pacman-holo-
+
+    - name: Install build dependencies
+      shell: bash
+      run: |
+        pacman-key --init
+        pacman -Sy --noconfirm --needed \
+            git meson clang glslang libcap sdl2 vulkan-headers \
+            libx11 libxmu libxcomposite libxrender libxres libxtst libxkbcommon \
+            libdrm libinput wayland-protocols benchmark xorg-xwayland pipewire \
+            lcms2 hwdata seatd xcb-util-wm xcb-util-errors libdisplay-info \
+            cmake libavif libheif aom rav1e libdecor libxdamage luajit libva \
+            libxss wget curl xorg-server-xvfb fuse-overlayfs bubblewrap zsync \
+            pulseaudio pipewire-audio alsa-plugins libxkbcommon-x11 libvdpau \
+            libvdpau-va-gl sudo pkgconf openssl zip base-devel
+        pacman -S --noconfirm --overwrite '*' libpipewire
+        install -m755 dist/scripts/pacman_shim.sh /usr/local/bin/pacman  # see dist/scripts/pacman_shim.sh for more info
+
+    # Default cargo locations so rust-cache can pick up the registry + target.
+    - name: Cache cargo + build artifacts
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: . -> target
+
+    - name: Build skeleton + AppImage
+      shell: bash
+      env:
+        CARGO_TARGET_DIR: ${{ github.workspace }}/target
+        CARGO_HOME: ${{ github.workspace }}/.cargo
+      run: ./dist/scripts/build_all.sh
+
+    - name: Package tarball
+      shell: bash
+      run: |
+        tar -czf "partydeck-${{ inputs.version }}-steamdeck-x86_64.tar.gz" \
+            -C dist/build_generated/holo release/
+        cp dist/appimage_generated/partydeck-anylinux-x86_64.AppImage \
+            "partydeck-${{ inputs.version }}-anylinux-x86_64.AppImage"

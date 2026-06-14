@@ -19,6 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/steamdeckhomebrew/holo-toolchain-rust@sha256:818de45e147f35798c66498380b31bd1fe8bf75afdf0a22b027053706836faf1
     steps:
+      # The Holo image ships no git; Install before checkout.
+      - name: Install git
+        run: pacman -Sy --noconfirm --needed git
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive

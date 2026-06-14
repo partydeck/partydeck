@@ -33,10 +33,14 @@ jobs:
         with:
           version: UNOFFICIAL
 
-      - name: Upload artifacts
+      - name: Upload tarball
         uses: actions/upload-artifact@v4
         with:
-          name: partydeck-UNOFFICIAL-${{ github.sha }}
-          path: |
-            ${{ steps.build.outputs.tarball }}
-            ${{ steps.build.outputs.appimage }}
+          name: partydeck-UNOFFICIAL-steamdeck-${{ github.sha }}
+          path: ${{ steps.build.outputs.tarball }}
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: partydeck-UNOFFICIAL-anylinux-${{ github.sha }}
+          path: ${{ steps.build.outputs.appimage }}

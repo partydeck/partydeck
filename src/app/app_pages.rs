@@ -34,7 +34,7 @@ impl PartyApp {
         ui.label("Framilano, Jayden, Marc, Max Rei");
         ui.horizontal_wrapped(|ui| {
             ui.label("Thank you to");
-            ui.hyperlink_to(" GitHub", "https://github.com/wunnr/partydeck");
+            ui.hyperlink_to(" GitHub", "https://github.com/partydeck/partydeck");
             ui.label("contributors/handler creators:")
         });
         ui.horizontal_wrapped(|ui| {

@@ -80,7 +80,7 @@ impl PartyApp {
                     },
                     false => format!("(Frozen) v{}", env!("CARGO_PKG_VERSION")),
                 };
-                ui.hyperlink_to(version_label, "https://github.com/wunnr/partydeck/releases");
+                ui.hyperlink_to(version_label, "https://github.com/partydeck/partydeck/releases/latest");
                 ui.add(egui::Separator::default().vertical());
                 ui.hyperlink_to("⮋", "https://drive.proton.me/urls/D9HBKM18YR#zG8XC8yVy9WL")
                     .on_hover_text("Download Game Handlers");
@@ -88,10 +88,10 @@ impl PartyApp {
                     .on_hover_text("Support PartyDeck Development");
                 ui.hyperlink_to(
                     "🖹",
-                    "https://github.com/wunnr/partydeck/tree/main?tab=License-2-ov-file",
+                    "https://github.com/partydeck/partydeck/tree/main?tab=License-2-ov-file",
                 )
                 .on_hover_text("Third-Party Licenses");
-                ui.hyperlink_to("", "https://github.com/wunnr/partydeck")
+                ui.hyperlink_to("", "https://github.com/partydeck/partydeck")
                     .on_hover_text("GitHub");
             });
         });

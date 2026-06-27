@@ -197,7 +197,7 @@ pub fn clear_tmp() -> Result<(), Box<dyn Error>> {
 
 pub fn check_for_partydeck_update() -> bool {
     // Try to get the latest release tag from GitHub
-    let Ok(response) = minreq::get("https://api.github.com/repos/wunnr/partydeck/releases/latest")
+    let Ok(response) = minreq::get("https://api.github.com/repos/partydeck/partydeck/releases/latest")
         .with_header("User-Agent", "partydeck")
         .with_timeout(10)
         .send()

@@ -1,7 +1,6 @@
 use crate::paths::{PATH_HOME, PATH_PARTY};
 
-use dialog::{Choice, DialogBox};
-use rfd::FileDialog;
+use rfd::{FileDialog, MessageButtons, MessageDialog, MessageDialogResult};
 use std::error::Error;
 use std::fs::{self, File};
 use std::io;
@@ -11,16 +10,19 @@ use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
 pub fn msg(title: &str, contents: &str) {
-    let _ = dialog::Message::new(contents).title(title).show();
+    MessageDialog::new()
+        .set_title(title)
+        .set_description(contents)
+        .show();
 }
 
 pub fn yesno(title: &str, contents: &str) -> bool {
-    if let Ok(prompt) = dialog::Question::new(contents).title(title).show() {
-        if prompt == Choice::Yes {
-            return true;
-        }
-    }
-    false
+    MessageDialog::new()
+        .set_title(title)
+        .set_description(contents)
+        .set_buttons(MessageButtons::YesNo)
+        .show()
+        == MessageDialogResult::Yes
 }
 
 pub fn dir_dialog() -> Result<PathBuf, Box<dyn Error>> {

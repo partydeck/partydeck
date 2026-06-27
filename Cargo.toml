@@ -10,7 +10,6 @@ download_deps_latest = ["download_deps"]
 build_gamescope = []
 
 [dependencies]
-dialog = "0.3.0"
 eframe = { version = "0.32.1", features = ["x11", "wayland", "accesskit", "default_fonts", "glow"], default-features = false}
 egui_extras = { version = "0.32.1", features = ["file", "image"], default-features = false }
 evdev = "=0.13.0"

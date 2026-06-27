@@ -195,23 +195,25 @@ pub fn clear_tmp() -> Result<(), Box<dyn Error>> {
 
 pub fn check_for_partydeck_update() -> bool {
     // Try to get the latest release tag from GitHub
-    if let Ok(client) = reqwest::blocking::Client::new()
-        .get("https://api.github.com/repos/wunnr/partydeck/releases/latest")
-        .header("User-Agent", "partydeck")
+    let Ok(response) = minreq::get("https://api.github.com/repos/wunnr/partydeck/releases/latest")
+        .with_header("User-Agent", "partydeck")
+        .with_timeout(10)
         .send()
-    {
-        if let Ok(release) = client.json::<serde_json::Value>() {
-            // Extract the tag name (vX.X.X format)
-            if let Some(tag_name) = release["tag_name"].as_str() {
-                // Strip the 'v' prefix
-                let latest_version = tag_name.strip_prefix('v').unwrap_or(tag_name);
+    else {
+        return false;
+    };
 
-                // Get current version from env!
-                let current_version = env!("CARGO_PKG_VERSION");
+    if let Ok(release) = serde_json::from_slice::<serde_json::Value>(response.as_bytes()) {
+        // Extract the tag name (vX.X.X format)
+        if let Some(tag_name) = release["tag_name"].as_str() {
+            // Strip the 'v' prefix
+            let latest_version = tag_name.strip_prefix('v').unwrap_or(tag_name);
 
-                // Compare versions directly
-                return latest_version != current_version;
-            }
+            // Get current version from env!
+            let current_version = env!("CARGO_PKG_VERSION");
+
+            // Compare versions directly
+            return latest_version != current_version;
         }
     }
 

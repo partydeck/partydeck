@@ -11,6 +11,9 @@ RELEASE_BUNDLE_DIR="${RELEASE_BUNDLE_DIR:-$REPO_ROOT/dist/build_generated/$BUILD
 case "$RELEASE_BUNDLE_DIR" in /*) ;; *) RELEASE_BUNDLE_DIR="$REPO_ROOT/$RELEASE_BUNDLE_DIR" ;; esac
 
 ARCH="$(uname -m)"
+
+# PLEASE NOTE: we are using scripts we dont entirely trust. These can be updated at any time. In the future, we should download and make sure we trust this.
+# For now it should be fine, but trusting external updated deps should be avoided.
 DEBLOATED_PKGS="https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/get-debloated-pkgs.sh"
 SHARUN="https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh"
 

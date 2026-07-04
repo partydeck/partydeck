@@ -24,8 +24,8 @@ runs:
       uses: actions/cache@v4
       with:
         path: /var/cache/pacman/pkg
-        key: pacman-holo-${{ hashFiles('dist/Dockerfile') }}
-        restore-keys: pacman-holo-
+        key: pacman-holo
+        restore-keys: pacman-holo
 
     - name: Install build dependencies
       shell: bash
@@ -53,7 +53,6 @@ runs:
       shell: bash
       env:
         CARGO_TARGET_DIR: ${{ github.workspace }}/target
-        CARGO_HOME: ${{ github.workspace }}/.cargo
       run: ./dist/scripts/build_all.sh
 
     - name: Package tarball

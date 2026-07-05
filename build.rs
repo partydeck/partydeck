@@ -1,5 +1,7 @@
-use std::{fs, path::PathBuf};
-use std::path::Path;
+use std::{fs, path::Path};
+
+#[cfg(feature = "build_gamescope")]
+use std::path::PathBuf;
 
 #[cfg(all(not(feature = "download_deps_latest"), feature = "download_deps"))]
 use sha2::{Sha256, Digest};
@@ -28,8 +30,8 @@ const DEPS: &[Dep] = &[
         asset_contains: "emu-linux-release.tar.bz2",
         archive_name: "emu-linux-release.tar.bz2",
         format: ArchFmt::TarBz2,
-        static_url: "https://github.com/Detanup01/gbe_fork/releases/download/release-2026_03_10/emu-linux-release.tar.bz2",
-        static_hash: "032500ca100b72fd2daa94eec3263cf7c6fe63487623f9e28d70eee41a58bb01",
+        static_url: "https://github.com/Detanup01/gbe_fork/releases/download/release-2026_05_30/emu-linux-release.tar.bz2",
+        static_hash: "113cf4f0f44ac10285eb03df82148f288a27ddd685470c33060e968f83e97d87",
         marker: "gbe-linux/regular/x64/steamclient.so",
         rename_from: Some("gbe-linux"),
     },
@@ -38,8 +40,8 @@ const DEPS: &[Dep] = &[
         asset_contains: "emu-win-release.7z",
         archive_name: "emu-win-release.7z",
         format: ArchFmt::SevenZ,
-        static_url: "https://github.com/Detanup01/gbe_fork/releases/download/release-2026_03_10/emu-win-release.7z",
-        static_hash: "0f67a4212aa4e6a71f84879a3a00f675cb2a8c43e13e38e0b27ab5c9e6a5e65f",
+        static_url: "https://github.com/Detanup01/gbe_fork/releases/download/release-2026_05_30/emu-win-release.7z",
+        static_hash: "38d0ce822f78f5b22dd28d948f4b1c98bc65f5fc3a850b7775286743a60e3516",
         marker: "gbe-win/steamclient_experimental/steamclient.dll",
         rename_from: Some("gbe-win"),
     },
@@ -48,8 +50,8 @@ const DEPS: &[Dep] = &[
         asset_contains: "umu-launcher-",
         archive_name: "umu-launcher-latest-zipapp.tar",
         format: ArchFmt::Tar,
-        static_url: "https://github.com/Open-Wine-Components/umu-launcher/releases/download/1.3.0/umu-launcher-1.3.0-zipapp.tar",
-        static_hash: "36502de766f3cc549ff85196a04fb5afdb4eb2a72c023f22fd25895df91fda2f",
+        static_url: "https://github.com/Open-Wine-Components/umu-launcher/releases/download/1.4.0/umu-launcher-1.4.0-zipapp.tar",
+        static_hash: "138ce4b8843608a257d4bee88191ca78a989778bcefd8abb3c1d1aaac3ac6fb8",
         marker: "umu/umu-run",
         rename_from: None,
     },
@@ -59,7 +61,7 @@ const DEPS: &[Dep] = &[
 const BUNDLE: &[(&str, &str)] = &[
     // goldberg linux
     ("deps/releases/gbe-linux/regular/x64/steamclient.so", "res/goldberg/linux64/steamclient.so"),
-    ("deps/releases/gbe-linux/regular/x32/steamclient.so", "res/goldberg/linux32/steamclient.so"),
+    ("deps/releases/gbe-linux/regular/x86/steamclient.so", "res/goldberg/linux32/steamclient.so"),
     // goldberg windows
     ("deps/releases/gbe-win/steamclient_experimental/steamclient.dll", "res/goldberg/win/steamclient.dll"),
     ("deps/releases/gbe-win/steamclient_experimental/steamclient64.dll", "res/goldberg/win/steamclient64.dll"),

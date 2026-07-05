@@ -1,0 +1,55 @@
+# Builds both release artifacts (skeleton + AppImage) against Arch latest.
+#   Build:    docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t partydeck-build -f dist/Dockerfile.arch .
+#   Skeleton: docker run --rm -v "$PWD:/workspace" partydeck-build
+#   Both: docker run --rm -v "$PWD:/workspace" partydeck-build bash dist/scripts/build_all.sh
+#   Appimage against skeleton: docker run --rm -v "$PWD:/workspace" partydeck-build bash dist/scripts/build_appimage.sh
+
+# Using latest arch buld as a dev env basis, assuming most developers are on arch latest.
+# This is an official image so should be fine.
+FROM archlinux:base-devel AS base
+
+RUN pacman-key --init &&                                                        \
+    pacman -Syu --noconfirm &&                                                  \
+    pacman -S --noconfirm --needed                                              \
+        git meson clang glslang libcap wlroots0.18 sdl2                         \
+        vulkan-headers libx11 libxmu libxcomposite libxrender libxres           \
+        libxtst libxkbcommon libdrm libinput wayland-protocols benchmark        \
+        xorg-xwayland pipewire cmake libavif libheif aom rav1e libdecor         \
+        libxdamage luajit libva libxss wget curl xorg-server-xvfb               \
+        fuse-overlayfs bubblewrap libxkbcommon zsync pipewire pulseaudio        \
+        pipewire-audio alsa-plugins libxkbcommon-x11 libvdpau libvdpau-va-gl    \
+        sudo pkg-config openssl zip patchelf
+
+
+# Using same cargo env as holo-docker. (https://github.com/SteamDeckHomebrew/holo-docker/blob/main/languages/rust.dockerfile)
+ENV RUSTUP_HOME=/.rustup
+ENV CARGO_HOME=/.cargo
+
+RUN mkdir /.rustup && chmod -R 777 /.rustup
+RUN mkdir /.cargo && chmod -R 777 /.cargo
+RUN pacman -Sy --noconfirm rustup && rustup install stable
+
+
+FROM base AS runtime
+
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd -g "$GID" appgroup 2>/dev/null || true;                \
+    useradd -m -u "$UID" -g "$GID" appuser 2>/dev/null || true;     \
+    usermod -aG wheel appuser;                                      \
+    echo "%wheel ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/wheel;    \
+    chmod 0440 /etc/sudoers.d/wheel;                                \
+    chown -R "$UID":"$GID" /.cargo /.rustup
+
+USER appuser
+WORKDIR /workspace
+
+ENV BUILD_NAME=arch
+
+# Done to allow for inter-build cache with local dirs. You can add -e to not keep cache.
+ENV CARGO_TARGET_DIR= \
+    CARGO_HOME=
+
+# Default: skeleton only. Override the command to also build the AppImage.
+CMD ["bash", "dist/scripts/build_dist.sh"]

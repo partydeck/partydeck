@@ -1,4 +1,4 @@
-name: CI (Arch)
+name: CI (Holo / Steam Deck)
 on:
   workflow_dispatch:
 jobs:
@@ -9,25 +9,25 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Build Arch image
+      - name: Build Holo image
         run: |
           docker build \
             --build-arg UID=$(id -u) \
             --build-arg GID=$(id -g) \
-            -t partydeck-arch-build \
-            -f dist/Dockerfile.arch .
+            -t partydeck-holo-build \
+            -f dist/Dockerfile.holo .
 
       - name: Build release skeleton
-        run: docker run --rm -v "$PWD:/workspace" partydeck-arch-build
+        run: docker run --rm -v "$PWD:/workspace" partydeck-holo-build
 
       - name: Create tarball
         run: |
-          tar -czf "partydeck-UNOFFICIAL-ARCH-TEST-steamdeck-x86_64.tar.gz" \
-              -C dist/build_generated/arch release/
+          tar -czf "partydeck-UNOFFICIAL-HOLO-TEST-steamdeck-x86_64.tar.gz" \
+              -C dist/build_generated/holo release/
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: built-UNOFFICIAL-binaries-arch
+          name: built-UNOFFICIAL-binaries-holo
           path: |
-            partydeck-UNOFFICIAL-ARCH-TEST-steamdeck-x86_64.tar.gz
+            partydeck-UNOFFICIAL-HOLO-TEST-steamdeck-x86_64.tar.gz

@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version string for artifact names (e.g. v1.2.3).
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container: ghcr.io/steamdeckhomebrew/holo-toolchain-rust@sha256:818de45e147f35798c66498380b31bd1fe8bf75afdf0a22b027053706836faf1
+    steps:
+      # The Holo image ships no git; Install before checkout.
+      - name: Install git
+        run: pacman -Sy --noconfirm --needed git
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: echo "value=${{ github.event.inputs.version || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        id: build
+        uses: ./.github/actions/build-partydeck
+        with:
+          version: ${{ steps.version.outputs.value }}
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.value }}
+          generate_release_notes: true
+          files: |
+            ${{ steps.build.outputs.tarball }}
+            ${{ steps.build.outputs.appimage }}

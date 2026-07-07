@@ -17,7 +17,8 @@ ARCH="$(uname -m)"
 DEBLOATED_PKGS="https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/get-debloated-pkgs.sh"
 SHARUN="https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh"
 
-export ADD_HOOKS="self-updater.bg.hook"
+unset GITHUB_REPOSITORY
+
 export OUTNAME="partydeck-anylinux-$ARCH.AppImage"
 export DESKTOP="$REPO_ROOT/dist/assets/partydeck.desktop"
 export ICON="$REPO_ROOT/dist/assets/partydeck.png"

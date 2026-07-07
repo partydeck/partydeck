@@ -12,10 +12,19 @@ case "$RELEASE_BUNDLE_DIR" in /*) ;; *) RELEASE_BUNDLE_DIR="$REPO_ROOT/$RELEASE_
 
 ARCH="$(uname -m)"
 
-# PLEASE NOTE: we are using scripts we dont entirely trust. These can be updated at any time. In the future, we should download and make sure we trust this.
-# For now it should be fine, but trusting external updated deps should be avoided.
-DEBLOATED_PKGS="https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/get-debloated-pkgs.sh"
-SHARUN="https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh"
+# PLEASE NOTE: we are using scripts we dont entirely trust. The refs below pin
+# them to fixed revisions, but get-debloated-pkgs still fetches packages from
+# moving releases internally, so this is not a complete lockdown.
+ANYLINUX_REF="b2d7fef33e5c73156ca170bd501251515644cbcf"
+ANYLINUX_RAW="https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/$ANYLINUX_REF/useful-tools"
+APPIMAGETOOL_VERSION="0.3.2"
+
+DEBLOATED_PKGS="$ANYLINUX_RAW/get-debloated-pkgs.sh"
+SHARUN="$ANYLINUX_RAW/quick-sharun.sh"
+export HOOKSRC="$ANYLINUX_RAW/hooks"
+export ANYLINUX_LIB_SOURCE="$ANYLINUX_RAW/lib/anylinux.c"
+export GTK_CLASS_FIX_SOURCE="$ANYLINUX_RAW/lib/gtk-class-fix.c"
+export APPIMAGETOOL_LINK="https://github.com/pkgforge-dev/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-$ARCH-linux"
 
 unset GITHUB_REPOSITORY
 

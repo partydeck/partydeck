@@ -32,3 +32,8 @@ tar = { version = "0.4", optional = true }
 bzip2 = { version = "0.6.1", optional = true }
 sevenz-rust2 = { version = "0.20.2", features = ["util"], default-features = false, optional = true }
 sha2 = { version = "0.10.9", optional = true}
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1

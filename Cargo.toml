@@ -10,13 +10,12 @@ download_deps_latest = ["download_deps"]
 build_gamescope = []
 
 [dependencies]
-dialog = "0.3.0"
 eframe = { version = "0.32.1", features = ["x11", "wayland", "accesskit", "default_fonts", "glow"], default-features = false}
 egui_extras = { version = "0.32.1", features = ["file", "image"], default-features = false }
 evdev = "=0.13.0"
 fastrand = "2.3.0"
 image = { version = "0.25.8", features = ["jpeg", "png"], default-features = false }
-reqwest = { version = "0.12.15", features = ["blocking", "json"] }
+minreq = { version = "3.0.0", features = ["https-rustls"] }
 rfd = "0.15.3"
 serde = "1.0.219"
 serde_json = "1.0.140"
@@ -33,3 +32,8 @@ tar = { version = "0.4", optional = true }
 bzip2 = { version = "0.6.1", optional = true }
 sevenz-rust2 = { version = "0.20.2", features = ["util"], default-features = false, optional = true }
 sha2 = { version = "0.10.9", optional = true}
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1

@@ -41,7 +41,7 @@ A split-screen game launcher for Linux/SteamOS
 
 ## Installing & Usage
 
-Download the latest release [here](https://github.com/wunnr/partydeck-rs/releases) and extract it into a folder. Download game handlers [here](https://drive.proton.me/urls/D9HBKM18YR#zG8XC8yVy9WL).
+Download the latest release [here](https://github.com/partydeck/partydeck/releases/latest) and extract it into a folder. Download game handlers [here](https://drive.proton.me/urls/D9HBKM18YR#zG8XC8yVy9WL).
 
 ### SteamOS
 

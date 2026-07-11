@@ -7,7 +7,6 @@ use crate::profiles::*;
 use crate::util::*;
 use crate::monitor::get_monitors_errorless;
 
-use dialog::DialogBox;
 use eframe::egui::RichText;
 use eframe::egui::{self, Ui};
 use rfd::FileDialog;
@@ -35,7 +34,7 @@ impl PartyApp {
         ui.label("Framilano, Jayden, Marc, Max Rei");
         ui.horizontal_wrapped(|ui| {
             ui.label("Thank you to");
-            ui.hyperlink_to(" GitHub", "https://github.com/wunnr/partydeck");
+            ui.hyperlink_to(" GitHub", "https://github.com/partydeck/partydeck");
             ui.label("contributors/handler creators:")
         });
         ui.horizontal_wrapped(|ui| {
@@ -46,6 +45,7 @@ impl PartyApp {
             ui.hyperlink_to("@felipecrs", "https://github.com/felipecrs");
             ui.hyperlink_to("@framilano", "https://github.com/framilano");
             ui.hyperlink_to("@FrancisBernard34", "https://github.com/FrancisBernard34");
+            ui.hyperlink_to("@mudkipdev", "https://github.com/mudkipdev");
             ui.hyperlink_to("@Rudicito", "https://github.com/Rudicito");
             ui.hyperlink_to("@Tau5", "https://github.com/Tau5");
             ui.hyperlink_to("@Twig6943", "https://github.com/Twig6943");
@@ -113,18 +113,39 @@ impl PartyApp {
                 }
             });
         if ui.button("New").clicked() {
-            if let Some(name) = dialog::Input::new("Enter name (must be alphanumeric):")
-                .title("New Profile")
-                .show()
-                .expect("Could not display dialog box")
-            {
-                if !name.is_empty() && name.chars().all(char::is_alphanumeric) {
-                    create_profile(&name).unwrap();
-                } else {
-                    msg("Error", "Invalid name");
-                }
+            self.new_profile_name.clear();
+            self.show_new_profile_dialog = true;
+        }
+
+        if self.show_new_profile_dialog {
+            let modal = egui::Modal::new(egui::Id::new("new_profile_modal")).show(ui.ctx(), |ui| {
+                ui.set_width(250.0);
+                ui.heading("New Profile");
+                ui.label("Enter name (must be alphanumeric):");
+                let response = ui.text_edit_singleline(&mut self.new_profile_name);
+                response.request_focus();
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    let confirmed = ui.button("Create").clicked()
+                        || (response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)));
+                    if confirmed {
+                        let name = self.new_profile_name.trim().to_string();
+                        if !name.is_empty() && name.chars().all(char::is_alphanumeric) {
+                            create_profile(&name).unwrap();
+                            self.profiles = scan_profiles(false);
+                            self.show_new_profile_dialog = false;
+                        } else {
+                            msg("Error", "Invalid name");
+                        }
+                    }
+                    if ui.button("Cancel").clicked() {
+                        self.show_new_profile_dialog = false;
+                    }
+                });
+            });
+            if modal.should_close() {
+                self.show_new_profile_dialog = false;
             }
-            self.profiles = scan_profiles(false);
         }
     }
 

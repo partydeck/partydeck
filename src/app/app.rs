@@ -43,6 +43,8 @@ pub struct PartyApp {
     pub instances: Vec<Instance>,
     pub instance_add_dev: Option<usize>,
     pub profiles: Vec<String>,
+    pub new_profile_name: String,
+    pub show_new_profile_dialog: bool,
 
     pub handlers: Vec<Handler>,
     pub selected_handler: usize,
@@ -90,6 +92,8 @@ impl PartyApp {
             handler_edit: None,
             handler_lite,
             profiles: scan_profiles(false),
+            new_profile_name: String::new(),
+            show_new_profile_dialog: false,
             loading_msg: None,
             loading_since: None,
             task: None,

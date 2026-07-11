@@ -1,7 +1,6 @@
 use crate::paths::{PATH_HOME, PATH_PARTY};
 
-use dialog::{Choice, DialogBox};
-use rfd::FileDialog;
+use rfd::{FileDialog, MessageButtons, MessageDialog, MessageDialogResult};
 use std::error::Error;
 use std::fs::{self, File};
 use std::io;
@@ -11,16 +10,19 @@ use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
 pub fn msg(title: &str, contents: &str) {
-    let _ = dialog::Message::new(contents).title(title).show();
+    MessageDialog::new()
+        .set_title(title)
+        .set_description(contents)
+        .show();
 }
 
 pub fn yesno(title: &str, contents: &str) -> bool {
-    if let Ok(prompt) = dialog::Question::new(contents).title(title).show() {
-        if prompt == Choice::Yes {
-            return true;
-        }
-    }
-    false
+    MessageDialog::new()
+        .set_title(title)
+        .set_description(contents)
+        .set_buttons(MessageButtons::YesNo)
+        .show()
+        == MessageDialogResult::Yes
 }
 
 pub fn dir_dialog() -> Result<PathBuf, Box<dyn Error>> {
@@ -195,23 +197,25 @@ pub fn clear_tmp() -> Result<(), Box<dyn Error>> {
 
 pub fn check_for_partydeck_update() -> bool {
     // Try to get the latest release tag from GitHub
-    if let Ok(client) = reqwest::blocking::Client::new()
-        .get("https://api.github.com/repos/wunnr/partydeck/releases/latest")
-        .header("User-Agent", "partydeck")
+    let Ok(response) = minreq::get("https://api.github.com/repos/partydeck/partydeck/releases/latest")
+        .with_header("User-Agent", "partydeck")
+        .with_timeout(10)
         .send()
-    {
-        if let Ok(release) = client.json::<serde_json::Value>() {
-            // Extract the tag name (vX.X.X format)
-            if let Some(tag_name) = release["tag_name"].as_str() {
-                // Strip the 'v' prefix
-                let latest_version = tag_name.strip_prefix('v').unwrap_or(tag_name);
+    else {
+        return false;
+    };
 
-                // Get current version from env!
-                let current_version = env!("CARGO_PKG_VERSION");
+    if let Ok(release) = serde_json::from_slice::<serde_json::Value>(response.as_bytes()) {
+        // Extract the tag name (vX.X.X format)
+        if let Some(tag_name) = release["tag_name"].as_str() {
+            // Strip the 'v' prefix
+            let latest_version = tag_name.strip_prefix('v').unwrap_or(tag_name);
 
-                // Compare versions directly
-                return latest_version != current_version;
-            }
+            // Get current version from env!
+            let current_version = env!("CARGO_PKG_VERSION");
+
+            // Compare versions directly
+            return latest_version != current_version;
         }
     }
 

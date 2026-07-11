@@ -408,6 +408,27 @@ impl PartyApp {
             ui.label(remove_text);
 
             ui.add(egui::Separator::default().vertical());
+
+            ui.add(
+                egui::Image::new(egui::include_image!("../../res/DPAD_LEFT.png")).max_height(12.0),
+            );
+            ui.add(
+                egui::Image::new(egui::include_image!("../../res/DPAD_RIGHT.png")).max_height(12.0),
+            );
+            ui.label("Profile");
+            if self.options.gamescope_sdl_backend {
+                ui.add(egui::Separator::default().vertical());
+                ui.add(
+                    egui::Image::new(egui::include_image!("../../res/DPAD_UP.png")).max_height(12.0),
+                );
+                ui.add(
+                    egui::Image::new(egui::include_image!("../../res/DPAD_DOWN.png"))
+                        .max_height(12.0),
+                );
+                ui.label("Monitor");
+            }
+
+            ui.add(egui::Separator::default().vertical());
         });
 
         ui.separator();

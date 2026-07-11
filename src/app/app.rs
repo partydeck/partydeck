@@ -339,6 +339,48 @@ impl PartyApp {
                         self.prepare_game_launch();
                     }
                 }
+                // A controller already added as a player cycles its own player row's
+                // profile with Left/Right and its monitor with Up/Down (no mouse/kbd).
+                Some(PadButton::Right) => {
+                    if let Some((inst, _)) = self.find_device_in_instance(i) {
+                        let n = self.profiles.len();
+                        if n > 0 {
+                            let sel = &mut self.instances[inst].profselection;
+                            *sel = (*sel + 1) % n;
+                        }
+                    }
+                }
+                Some(PadButton::Left) => {
+                    if let Some((inst, _)) = self.find_device_in_instance(i) {
+                        let n = self.profiles.len();
+                        if n > 0 {
+                            let sel = &mut self.instances[inst].profselection;
+                            *sel = (*sel + n - 1) % n; // wrap without underflow
+                        }
+                    }
+                }
+                Some(PadButton::Down) => {
+                    if self.options.gamescope_sdl_backend {
+                        if let Some((inst, _)) = self.find_device_in_instance(i) {
+                            let n = self.monitors.len();
+                            if n > 0 {
+                                let m = &mut self.instances[inst].monitor;
+                                *m = (*m + 1) % n;
+                            }
+                        }
+                    }
+                }
+                Some(PadButton::Up) => {
+                    if self.options.gamescope_sdl_backend {
+                        if let Some((inst, _)) = self.find_device_in_instance(i) {
+                            let n = self.monitors.len();
+                            if n > 0 {
+                                let m = &mut self.instances[inst].monitor;
+                                *m = (*m + n - 1) % n;
+                            }
+                        }
+                    }
+                }
                 _ => {}
             }
             i += 1;

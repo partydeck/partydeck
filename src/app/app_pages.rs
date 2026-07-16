@@ -2,10 +2,11 @@ use super::app::{MenuPage, PartyApp, SettingsPage};
 use super::config::*;
 use crate::handler::*;
 use crate::input::*;
+use crate::instance_profiles::{load_last_instance_profiles, save_last_instance_profiles};
+use crate::monitor::get_monitors_errorless;
 use crate::paths::*;
 use crate::profiles::*;
 use crate::util::*;
-use crate::monitor::get_monitors_errorless;
 
 use dialog::DialogBox;
 use eframe::egui::RichText;
@@ -69,14 +70,11 @@ impl PartyApp {
         egui::ScrollArea::vertical()
             .max_height(ui.available_height() - 30.0) // Remove lower menue height from avaliable
             .auto_shrink(false)
-            .show(ui, |ui| {
-                match self.settings_page {
-                    SettingsPage::General => self.display_settings_general(ui),
-                    SettingsPage::Proton => self.display_settings_proton(ui),
-                    SettingsPage::Gamescope => self.display_settings_gamescope(ui),
-                }
-        });
-
+            .show(ui, |ui| match self.settings_page {
+                SettingsPage::General => self.display_settings_general(ui),
+                SettingsPage::Proton => self.display_settings_proton(ui),
+                SettingsPage::Gamescope => self.display_settings_gamescope(ui),
+            });
 
         ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
             ui.horizontal(|ui| {
@@ -272,11 +270,14 @@ impl PartyApp {
                 ui.radio_value(&mut h.runtime, "steamrt4".to_string(), "4.0 (steamrt4)");
             });
         }
-        
+
         if h.spec_ver != HANDLER_SPEC_CURRENT_VERSION {
             if ui.button("Update Handler Specification Version").clicked() {
                 h.spec_ver = HANDLER_SPEC_CURRENT_VERSION;
-                msg("Handler Specification Version Updated", "Remember to save your changes.");
+                msg(
+                    "Handler Specification Version Updated",
+                    "Remember to save your changes.",
+                );
             }
         }
 
@@ -413,18 +414,22 @@ impl PartyApp {
         ui.separator();
 
         let mut devices_to_remove: Vec<(usize, usize)> = Vec::new();
+        let mut profile_updates: Vec<(usize, String)> = Vec::new();
         for (i, instance) in &mut self.instances.iter_mut().enumerate() {
             ui.horizontal(|ui| {
                 ui.label(format!("{}", i + 1));
 
                 ui.label("👤");
-                egui::ComboBox::from_id_salt(format!("{i}")).show_index(
+                let profile_response = egui::ComboBox::from_id_salt(format!("{i}")).show_index(
                     ui,
                     &mut instance.profselection,
                     self.profiles.len(),
-                    |i| self.profiles[i].clone(),
+                    |profile_index| self.profiles[profile_index].clone(),
                 );
 
+                if profile_response.changed() {
+                    profile_updates.push((i, self.profiles[instance.profselection].clone()));
+                }
                 if self.options.gamescope_sdl_backend {
                     ui.label("🖵");
                     egui::ComboBox::from_id_salt(format!("monitors{i}")).show_index(
@@ -436,9 +441,10 @@ impl PartyApp {
                 }
 
                 if self.instance_add_dev == None {
-                    let invitebtn = ui.add(
-                        egui::Button::image_and_text(egui::include_image!("../../res/BTN_NORTH.png"), "[A] Invite New Device")
-                    );
+                    let invitebtn = ui.add(egui::Button::image_and_text(
+                        egui::include_image!("../../res/BTN_NORTH.png"),
+                        "[A] Invite New Device",
+                    ));
                     if invitebtn.clicked() {
                         self.instance_add_dev = Some(i);
                     }
@@ -470,6 +476,27 @@ impl PartyApp {
             }
         }
 
+        if !profile_updates.is_empty() {
+            let mut remembered_profiles = load_last_instance_profiles();
+
+            for (instance_index, profile_name) in profile_updates {
+                if remembered_profiles.profiles.len() <= instance_index {
+                    remembered_profiles
+                        .profiles
+                        .resize(instance_index + 1, String::new());
+                }
+
+                remembered_profiles.profiles[instance_index] = profile_name;
+            }
+
+            if let Err(error) = save_last_instance_profiles(&remembered_profiles) {
+                eprintln!(
+                    "[partydeck] Failed to save last instance profiles: {}",
+                    error
+                );
+            }
+        }
+
         for (i, d) in devices_to_remove {
             self.remove_device_instance(i, d);
         }
@@ -491,7 +518,10 @@ impl PartyApp {
     }
 
     pub fn display_settings_general(&mut self, ui: &mut Ui) {
-        let check_for_app_updates = ui.checkbox(&mut self.options.check_for_updates, "Check for partydeck updates");
+        let check_for_app_updates = ui.checkbox(
+            &mut self.options.check_for_updates,
+            "Check for partydeck updates",
+        );
         if check_for_app_updates.hovered() {
             self.infotext = "DEFAULT: Enabled\n\nWARNING: CONTACTS GITHUB's SERVERS ON EVERY LAUNCH\nMakes partydeck check online for updates durring each launch, and notfies user when avaliable.".to_string();
         }
@@ -548,7 +578,7 @@ impl PartyApp {
                 self.input_devices = scan_input_devices(&self.options.pad_filter_type);
             }
         });
-        
+
         let profile_unique_dirs_check = ui.checkbox(
             &mut self.options.profile_unique_dirs,
             "Unique per-profile environments",
@@ -604,15 +634,13 @@ impl PartyApp {
         if proton_separate_pfxs_check.hovered() {
             self.infotext = "DEFAULT: Enabled\n\nRuns each instance in separate Proton prefixes. If unsure, leave this checked. Multiple prefixes takes up more disk space, but generally provides better compatibility and fewer issues with Proton-based games.".to_string();
         }
-        
-        let proton_wow64_check = ui.checkbox(
-            &mut self.options.proton_wow64,
-            "Run Proton in WoW64 mode",
-        );
+
+        let proton_wow64_check =
+            ui.checkbox(&mut self.options.proton_wow64, "Run Proton in WoW64 mode");
         if proton_wow64_check.hovered() {
             self.infotext = "DEFAULT: Enabled\n\nRuns Proton games in the new Wine WoW64 mode. If unsure, leave this checked.".to_string();
         }
-        
+
         if ui.button("Erase All Proton Prefix Data").clicked() {
             if yesno(
                 "Erase Prefix?",
@@ -627,7 +655,7 @@ impl PartyApp {
             }
         }
     }
-    
+
     pub fn display_settings_gamescope(&mut self, ui: &mut Ui) {
         let gamescope_lowres_fix_check = ui.checkbox(
             &mut self.options.gamescope_fix_lowres,

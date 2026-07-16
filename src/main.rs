@@ -7,6 +7,7 @@ mod monitor;
 mod paths;
 mod profiles;
 mod util;
+mod virtual_gamepad;
 
 use crate::app::*;
 use crate::handler::Handler;

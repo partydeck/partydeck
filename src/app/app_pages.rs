@@ -46,6 +46,7 @@ impl PartyApp {
             ui.hyperlink_to("@felipecrs", "https://github.com/felipecrs");
             ui.hyperlink_to("@framilano", "https://github.com/framilano");
             ui.hyperlink_to("@FrancisBernard34", "https://github.com/FrancisBernard34");
+            ui.hyperlink_to("@JackTYM", "https://github.com/JackTYM");
             ui.hyperlink_to("@Rudicito", "https://github.com/Rudicito");
             ui.hyperlink_to("@Tau5", "https://github.com/Tau5");
             ui.hyperlink_to("@Twig6943", "https://github.com/Twig6943");
@@ -406,6 +407,29 @@ impl PartyApp {
                 Some(_) => "Cancel",
             };
             ui.label(remove_text);
+
+            ui.add(egui::Separator::default().vertical());
+        });
+        
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::Image::new(egui::include_image!("../../res/DPAD_LEFT.png")).max_height(12.0),
+            );
+            ui.add(
+                egui::Image::new(egui::include_image!("../../res/DPAD_RIGHT.png")).max_height(12.0),
+            );
+            ui.label("Change Instance Profile");
+            if self.options.gamescope_sdl_backend {
+                ui.add(egui::Separator::default().vertical());
+                ui.add(
+                    egui::Image::new(egui::include_image!("../../res/DPAD_UP.png")).max_height(12.0),
+                );
+                ui.add(
+                    egui::Image::new(egui::include_image!("../../res/DPAD_DOWN.png"))
+                        .max_height(12.0),
+                );
+                ui.label("Change Instance Monitor");
+            }
 
             ui.add(egui::Separator::default().vertical());
         });

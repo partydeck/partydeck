@@ -2704,6 +2704,7 @@ dependencies = [
  "evdev",
  "fastrand",
  "image",
+ "nix 0.29.0",
  "pathsearch",
  "reqwest",
  "rfd",

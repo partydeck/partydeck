@@ -3,20 +3,22 @@ use crate::{
     instance::Instance,
 };
 
-use evdev::{Device, EventType, InputEvent, UinputAbsSetup, uinput::VirtualDevice};
+use evdev::{uinput::VirtualDevice, Device, EventType, InputEvent, UinputAbsSetup};
 
+use nix::{
+    errno::Errno,
+    poll::{poll, PollFd, PollFlags, PollTimeout},
+};
 use std::{
     io::ErrorKind,
+    net::Shutdown,
+    os::{fd::AsFd, unix::net::UnixStream},
     path::PathBuf,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
     thread::{self, JoinHandle},
-    time::Duration,
 };
 
 pub const VIRTUAL_GAMEPAD_NAME_PREFIX: &str = "PartyDeck Internal Virtual Gamepad";
+const RECONNECT_RETRY_MS: u16 = 500;
 
 pub fn is_partydeck_virtual_device(device: &Device) -> bool {
     device
@@ -25,14 +27,15 @@ pub fn is_partydeck_virtual_device(device: &Device) -> bool {
 }
 
 struct VirtualGamepad {
-    path: String,
-    stop: Arc<AtomicBool>,
+    event_path: String,
+    stop_signal: UnixStream,
     thread: Option<JoinHandle<()>>,
 }
 
 impl Drop for VirtualGamepad {
     fn drop(&mut self) {
-        self.stop.store(true, Ordering::Relaxed);
+        // Wake the relay thread if it is blocked inside poll().
+        let _ = self.stop_signal.shutdown(Shutdown::Write);
 
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
@@ -81,7 +84,7 @@ impl VirtualGamepadSession {
                 println!(
                     "[partydeck] Created virtual gamepad for instance {}: {}",
                     instance_index + 1,
-                    virtual_gamepad.path
+                    virtual_gamepad.event_path
                 );
 
                 gamepads.push(virtual_gamepad);
@@ -107,16 +110,16 @@ impl VirtualGamepadSession {
             .get(instance_index)
             .into_iter()
             .flatten()
-            .map(|gamepad| gamepad.path.as_str())
+            .map(|gamepad| gamepad.event_path.as_str())
     }
 }
 
 fn create_virtual_gamepad(
-    physical_path: &str,
+    physical_event_path: &str,
     instance_index: usize,
     gamepad_index: usize,
 ) -> Result<VirtualGamepad, Box<dyn std::error::Error>> {
-    let physical = Device::open(physical_path)?;
+    let physical = open_nonblocking_device(physical_event_path)?;
 
     let name = format!(
         "{} {}-{}",
@@ -139,119 +142,215 @@ fn create_virtual_gamepad(
     }
 
     let mut virtual_device = builder.build()?;
-    let virtual_path = find_event_path(&mut virtual_device)?;
+    let virtual_event_path = find_event_path(&mut virtual_device)?;
 
-    let physical_path = physical_path.to_owned();
-    let stop = Arc::new(AtomicBool::new(false));
-    let thread_stop = Arc::clone(&stop);
+    let physical_event_path = physical_event_path.to_owned();
+    let (stop_signal, thread_stop_signal) = UnixStream::pair()?;
 
-    let thread = thread::spawn(move || {
-        relay_loop(physical_path, physical, virtual_device, thread_stop);
-    });
+    let thread_name = format!(
+        "partydeck-gamepad-relay-{}-{}",
+        instance_index + 1,
+        gamepad_index + 1
+    );
+
+    let thread = thread::Builder::new().name(thread_name).spawn(move || {
+        relay_loop(
+            physical_event_path,
+            physical,
+            virtual_device,
+            thread_stop_signal,
+        );
+    })?;
 
     Ok(VirtualGamepad {
-        path: virtual_path,
-        stop,
+        event_path: virtual_event_path,
+        stop_signal,
         thread: Some(thread),
     })
 }
+enum RelayPollResult {
+    Stop,
+    InputReady,
+    Disconnected,
+}
+
+fn wait_for_input_or_stop(
+    device: &Device,
+    stop_signal: &UnixStream,
+) -> Result<RelayPollResult, Errno> {
+    loop {
+        let mut fds = [
+            PollFd::new(stop_signal.as_fd(), PollFlags::POLLIN),
+            PollFd::new(device.as_fd(), PollFlags::POLLIN),
+        ];
+
+        match poll(&mut fds, PollTimeout::NONE) {
+            Ok(_) => {}
+            Err(Errno::EINTR) => continue,
+            Err(error) => return Err(error),
+        }
+
+        let stop_events = fds[0].revents().unwrap_or(PollFlags::POLLERR);
+
+        if !stop_events.is_empty() {
+            return Ok(RelayPollResult::Stop);
+        }
+
+        let device_events = fds[1].revents().unwrap_or(PollFlags::POLLERR);
+
+        if device_events.intersects(PollFlags::POLLERR | PollFlags::POLLHUP | PollFlags::POLLNVAL) {
+            return Ok(RelayPollResult::Disconnected);
+        }
+
+        if device_events.contains(PollFlags::POLLIN) {
+            return Ok(RelayPollResult::InputReady);
+        }
+    }
+}
+
+fn wait_for_reconnect_or_stop(stop_signal: &UnixStream) -> Result<bool, Errno> {
+    loop {
+        let mut fds = [PollFd::new(stop_signal.as_fd(), PollFlags::POLLIN)];
+
+        match poll(&mut fds, RECONNECT_RETRY_MS) {
+            Ok(0) => return Ok(false),
+            Ok(_) => return Ok(true),
+            Err(Errno::EINTR) => continue,
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+fn open_nonblocking_device(path: &str) -> std::io::Result<Device> {
+    let device = Device::open(path)?;
+    device.set_nonblocking(true)?;
+    Ok(device)
+}
 
 fn relay_loop(
-    physical_path: String,
+    physical_event_path: String,
     physical: Device,
     mut virtual_device: VirtualDevice,
-    stop: Arc<AtomicBool>,
+    stop_signal: UnixStream,
 ) {
-    if let Err(error) = physical.set_nonblocking(true) {
-        eprintln!(
-            "[partydeck] Failed to set gamepad {} to non-blocking mode: {}",
-            physical_path, error
-        );
-        return;
-    }
-
     println!(
         "[partydeck] Started virtual gamepad relay for {}",
-        physical_path
+        physical_event_path
     );
 
     let mut physical_device = Some(physical);
+    let mut events = Vec::<InputEvent>::new();
 
-    while !stop.load(Ordering::Relaxed) {
+    loop {
         if physical_device.is_none() {
-            match Device::open(&physical_path) {
+            match wait_for_reconnect_or_stop(&stop_signal) {
+                Ok(true) => break,
+                Ok(false) => {}
+                Err(error) => {
+                    eprintln!(
+                        "[partydeck] Failed while waiting to reconnect {}: {}",
+                        physical_event_path, error
+                    );
+                    break;
+                }
+            }
+
+            match open_nonblocking_device(&physical_event_path) {
                 Ok(device) => {
-                    if let Err(error) = device.set_nonblocking(true) {
-                        eprintln!(
-                            "[partydeck] Failed to reopen gamepad {}: {}",
-                            physical_path, error
-                        );
-
-                        thread::sleep(Duration::from_millis(500));
-                        continue;
-                    }
-
                     println!(
                         "[partydeck] Physical gamepad reconnected: {}",
-                        physical_path
+                        physical_event_path
                     );
 
                     physical_device = Some(device);
                 }
 
                 Err(_) => {
-                    thread::sleep(Duration::from_millis(500));
-                    continue;
+                    // Retry after another interruptible wait.
                 }
             }
+
+            continue;
         }
+
+        // Block until input, disconnection, or shutdown.
+        let poll_result = {
+            let Some(device) = physical_device.as_ref() else {
+                continue;
+            };
+
+            wait_for_input_or_stop(device, &stop_signal)
+        };
+
+        match poll_result {
+            Ok(RelayPollResult::Stop) => break,
+
+            Ok(RelayPollResult::Disconnected) => {
+                eprintln!(
+                    "[partydeck] Physical gamepad disconnected: {}",
+                    physical_event_path
+                );
+
+                physical_device = None;
+                continue;
+            }
+
+            Ok(RelayPollResult::InputReady) => {}
+
+            Err(error) => {
+                eprintln!(
+                    "[partydeck] Failed to poll physical gamepad {}: {}",
+                    physical_event_path, error
+                );
+                break;
+            }
+        }
+
+        events.clear();
 
         let fetch_result = {
             let Some(device) = physical_device.as_mut() else {
                 continue;
             };
 
-            device.fetch_events().map(|events| {
-                events
-                    .filter(|event| event.event_type() != EventType::SYNCHRONIZATION)
-                    .collect::<Vec<InputEvent>>()
+            device.fetch_events().map(|incoming_events| {
+                events.extend(
+                    incoming_events
+                        .filter(|event| event.event_type() != EventType::SYNCHRONIZATION),
+                );
             })
         };
 
         match fetch_result {
-            Ok(events) => {
-                if events.is_empty() {
-                    thread::sleep(Duration::from_millis(2));
-                    continue;
-                }
+            Ok(()) if events.is_empty() => {}
 
+            Ok(()) => {
                 if let Err(error) = virtual_device.emit(&events) {
                     eprintln!(
                         "[partydeck] Failed to emit virtual gamepad events: {}",
                         error
                     );
+                    break;
                 }
             }
 
-            Err(error) if error.kind() == ErrorKind::WouldBlock => {
-                thread::sleep(Duration::from_millis(2));
-            }
+            Err(error) if error.kind() == ErrorKind::WouldBlock => {}
 
             Err(error) => {
                 eprintln!(
-                    "[partydeck] Physical gamepad disconnected or failed ({}): {}",
-                    physical_path, error
+                    "[partydeck] Physical gamepad disconnected or failed \
+                     ({}): {}",
+                    physical_event_path, error
                 );
 
                 physical_device = None;
-                thread::sleep(Duration::from_millis(500));
             }
         }
     }
 
     println!(
         "[partydeck] Stopped virtual gamepad relay for {}",
-        physical_path
+        physical_event_path
     );
 }
 

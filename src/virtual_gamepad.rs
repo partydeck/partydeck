@@ -9,6 +9,7 @@ use nix::{
     errno::Errno,
     poll::{poll, PollFd, PollFlags, PollTimeout},
 };
+
 use std::{
     io::ErrorKind,
     net::Shutdown,
@@ -17,13 +18,13 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-pub const VIRTUAL_GAMEPAD_NAME_PREFIX: &str = "PartyDeck Internal Virtual Gamepad";
+const VIRTUAL_GAMEPAD_NAME_MARKER: &str = " (PartyDeck ";
 const RECONNECT_RETRY_MS: u16 = 500;
 
 pub fn is_partydeck_virtual_device(device: &Device) -> bool {
     device
         .name()
-        .is_some_and(|name| name.starts_with(VIRTUAL_GAMEPAD_NAME_PREFIX))
+        .is_some_and(|name| name.contains(VIRTUAL_GAMEPAD_NAME_MARKER) && name.ends_with(')'))
 }
 
 struct VirtualGamepad {
@@ -121,9 +122,10 @@ fn create_virtual_gamepad(
 ) -> Result<VirtualGamepad, Box<dyn std::error::Error>> {
     let physical = open_nonblocking_device(physical_event_path)?;
 
+    let physical_name = physical.name().unwrap_or("Gamepad");
     let name = format!(
-        "{} {}-{}",
-        VIRTUAL_GAMEPAD_NAME_PREFIX,
+        "{} (PartyDeck {}-{})",
+        physical_name,
         instance_index + 1,
         gamepad_index + 1
     );
@@ -168,6 +170,7 @@ fn create_virtual_gamepad(
         thread: Some(thread),
     })
 }
+
 enum RelayPollResult {
     Stop,
     InputReady,

@@ -83,11 +83,29 @@ macro_rules! build_println {
 
 #[allow(dead_code)]
 fn apply_patches(deps_dir: &std::path::Path) {
-    let mut git_apply = std::process::Command::new("git");
-    git_apply.args(["apply", &deps_dir.join("deps.patch").to_string_lossy()]);
-    let _ = git_apply.spawn().map_err(|e| {
-        build_println!("Failed to git apply the patches we have for our deps, this is most likely not a real error: {:?} - {:?}", git_apply.get_program().to_string_lossy(), e);
-    });
+    let patch_path = deps_dir.join("deps.patch");
+
+    // Check if the patch can be applied before attempting it.
+    // If the check fails the patch is most likely already applied, so skip silently.
+    let check = std::process::Command::new("git")
+        .args(["apply", "--check", &patch_path.to_string_lossy()])
+        .output();
+
+    match check {
+        Ok(output) if output.status.success() => {
+            let status = std::process::Command::new("git")
+                .args(["apply", &patch_path.to_string_lossy()])
+                .status();
+            match status {
+                Ok(s) if s.success() => { build_println!("Applied patches from deps.patch"); }
+                Ok(s) => { build_println!("git apply exited with {s} for deps.patch"); }
+                Err(e) => { build_println!("Failed to run git apply: {e}"); }
+            }
+        }
+        _ => {
+            build_println!("Skipping deps.patch (already applied or does not apply cleanly)");
+        }
+    }
 }
 
 fn main() {
@@ -137,7 +155,7 @@ fn build_gamescope(deps_dir: &Path, target_dir: &PathBuf) {
     let gamescope_dir = deps_dir.join("gamescope");
     let build_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("gamescope-build-gcc");
 
-    if !build_dir.exists() && gamescope_dir.exists() {
+    if !build_dir.join("build.ninja").exists() && gamescope_dir.exists() {
         build_println!("Running meson setup command for gamescope");
         let status = Command::new("meson")
             .arg("setup")

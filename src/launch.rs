@@ -371,7 +371,6 @@ pub fn launch_cmds(
             };
         }
 
-
         cmd.arg(&path_exec);
 
         for arg in h.args.split_whitespace() {

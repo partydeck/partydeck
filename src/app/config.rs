@@ -18,6 +18,10 @@ fn default_true() -> bool {
     true
 }
 
+fn default_kbm_support() -> bool {
+    pathsearch::find_executable_in_path("gamescope-kbm").is_some()
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PartyConfig {
     #[serde(default = "default_true")]
@@ -28,7 +32,7 @@ pub struct PartyConfig {
     pub gamescope_sdl_backend: bool,
     #[serde(default)]
     pub gamescope_force_grab_cursor: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_kbm_support")]
     pub kbm_support: bool,
     #[serde(default)]
     pub proton_version: String,
@@ -57,7 +61,7 @@ impl Default for PartyConfig {
             gamescope_fix_lowres: true,
             gamescope_sdl_backend: true,
             gamescope_force_grab_cursor: false,
-            kbm_support: true,
+            kbm_support: pathsearch::find_executable_in_path("gamescope-kbm").is_some(),
             proton_version: "".to_string(),
             proton_separate_pfxs: true,
             proton_wow64: true,

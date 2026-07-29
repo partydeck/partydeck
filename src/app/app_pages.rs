@@ -663,6 +663,10 @@ impl PartyApp {
             &mut self.options.kbm_support,
             "Enable keyboard and mouse support through custom Gamescope",
         );
+        let virtual_gamepads_check = ui.checkbox(
+            &mut self.options.use_virtual_gamepads,
+            "Preserve controller bindings on reconnect (Experimental)",
+        );
         let gamescope_force_grab_cursor_check = ui.checkbox(
             &mut self.options.gamescope_force_grab_cursor,
             "Force grab cursor for Gamescope",
@@ -676,6 +680,9 @@ impl PartyApp {
         }
         if kbm_support_check.hovered() {
             self.infotext = "Runs a custom Gamescope build with support for holding keyboards and mice. If you want to use your own Gamescope installation, uncheck this.".to_string();
+        }
+        if virtual_gamepads_check.hovered() {
+            self.infotext = "Routes assigned gamepads through persistent virtual controllers, game instances keep their controller after reconnects. Gamepads only.".to_string();
         }
         if gamescope_force_grab_cursor_check.hovered() {
             self.infotext = "Sets the \"--force-grab-cursor\" flag in Gamescope. This keeps the cursor within the Gamescope window. If unsure, leave this unchecked.".to_string();

@@ -1,13 +1,14 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::app::{PartyConfig, PadFilterType};
+use crate::app::{PadFilterType, PartyConfig};
 use crate::handler::*;
 use crate::input::*;
 use crate::instance::*;
 use crate::paths::*;
 use crate::profiles::{create_profile, create_profile_gamesave};
 use crate::util::*;
+use crate::virtual_gamepad::VirtualGamepadSession;
 
 pub fn setup_profiles(
     h: &Handler,
@@ -36,7 +37,18 @@ pub fn launch_game(
     instances: &Vec<Instance>,
     cfg: &PartyConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let new_cmds = launch_cmds(h, input_devices, instances, cfg)?;
+    let virtual_gamepad_session = VirtualGamepadSession::start_if_enabled(
+        cfg.use_virtual_gamepads,
+        input_devices,
+        instances,
+    )?;
+    let new_cmds = launch_cmds(
+        h,
+        input_devices,
+        instances,
+        cfg,
+        virtual_gamepad_session.as_ref(),
+    )?;
     print_launch_cmds(&new_cmds);
 
     if cfg.enable_kwin_script {
@@ -45,7 +57,8 @@ pub fn launch_game(
             false => "splitscreen_kwin.js",
         };
 
-        kwin_dbus_start_script(PATH_RES.join(script)).map_err(|e| format!("Failed to start KWin script: {}", e))?;
+        kwin_dbus_start_script(PATH_RES.join(script))
+            .map_err(|e| format!("Failed to start KWin script: {}", e))?;
     }
 
     let sleep_time = match h.pause_between_starts {
@@ -58,7 +71,11 @@ pub fn launch_game(
     let mut i = 0;
     for mut cmd in new_cmds {
         let handle = cmd.spawn().map_err(|e| {
-            format!("Failed to start '{}': {}", cmd.get_program().to_string_lossy(), e)
+            format!(
+                "Failed to start '{}': {}",
+                cmd.get_program().to_string_lossy(),
+                e
+            )
         })?;
         handles.push(handle);
 
@@ -80,6 +97,7 @@ pub fn launch_cmds(
     input_devices: &[DeviceInfo],
     instances: &Vec<Instance>,
     cfg: &PartyConfig,
+    virtual_gamepads: Option<&VirtualGamepadSession>,
 ) -> Result<Vec<std::process::Command>, Box<dyn std::error::Error>> {
     let win = h.win();
     let exec = Path::new(&h.exec);
@@ -90,7 +108,9 @@ pub fn launch_cmds(
     };
 
     if cfg.kbm_support && !gamescope.exists() {
-        return Err("gamescope-kbm is missing. Please reinstall partydeck or disable KBM support.".into());
+        return Err(
+            "gamescope-kbm is missing. Please reinstall partydeck or disable KBM support.".into(),
+        );
     }
 
     if !cfg.kbm_support && pathsearch::find_executable_in_path("gamescope").is_none() {
@@ -103,10 +123,16 @@ pub fn launch_cmds(
                 .join("steam/steamapps/common/SteamLinuxRuntime_soldier")
                 .exists())
         || (runtime == "sniper"
-            && !PATH_STEAM.join("steam/steamapps/common/SteamLinuxRuntime_sniper").exists()
-            && !PATH_STEAM.join("steam/steamapps/common/SteamLinuxRuntime_sniper-arm64").exists())
+            && !PATH_STEAM
+                .join("steam/steamapps/common/SteamLinuxRuntime_sniper")
+                .exists()
+            && !PATH_STEAM
+                .join("steam/steamapps/common/SteamLinuxRuntime_sniper-arm64")
+                .exists())
         || (runtime == "steamrt4"
-            && !PATH_STEAM.join("steam/steamapps/common/SteamLinuxRuntime_4").exists())
+            && !PATH_STEAM
+                .join("steam/steamapps/common/SteamLinuxRuntime_4")
+                .exists())
     {
         return Err(format!("Steam Runtime {runtime} not found! Runtime must be installed on the same drive that the Steam client is installed on.").into());
     }
@@ -116,11 +142,12 @@ pub fn launch_cmds(
         .collect();
 
     for (i, instance) in instances.iter().enumerate() {
-        let gamedir = if h.is_saved_handler() && !cfg.disable_mount_gamedirs && cfg.profile_unique_dirs {
-            PATH_PARTY.join("tmp").join(format!("game-{}", i))
-        } else {
-            PathBuf::from(h.get_game_rootpath()?)
-        };
+        let gamedir =
+            if h.is_saved_handler() && !cfg.disable_mount_gamedirs && cfg.profile_unique_dirs {
+                PATH_PARTY.join("tmp").join(format!("game-{}", i))
+            } else {
+                PathBuf::from(h.get_game_rootpath()?)
+            };
 
         if !gamedir.join(exec).exists() {
             return Err(format!("Executable not found: {}", gamedir.join(exec).display()).into());
@@ -177,7 +204,10 @@ pub fn launch_cmds(
             cmd.env("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD", "1");
         }
         if cfg.pad_filter_type == PadFilterType::OnlySteamInput {
-            cmd.env("SDL_GAMECONTROLLER_IGNORE_DEVICES", SDL_GAMECONTROLLER_IGNORE_DEVICES);
+            cmd.env(
+                "SDL_GAMECONTROLLER_IGNORE_DEVICES",
+                SDL_GAMECONTROLLER_IGNORE_DEVICES,
+            );
         }
         if !h.env.is_empty() {
             for env_var in h.env.split_whitespace() {
@@ -239,23 +269,41 @@ pub fn launch_cmds(
         cmd.arg("--die-with-parent");
         cmd.args(["--dev-bind", "/", "/"]);
         cmd.args(["--tmpfs", "/tmp"]);
-        // Mask out any gamepads that aren't this player's
-        for (d, dev) in input_devices.iter().enumerate() {
-            if !dev.enabled
-                || (!instance.devices.contains(&d) && dev.device_type == DeviceType::Gamepad)
-            {
-                cmd.args(["--bind", "/dev/null", &dev.path]);
-                // Wine's winebus reads controllers via /dev/hidraw* when
-                // hidraw is exposed, so masking only the evdev node leaks
-                // input to every instance.
-                if h.enable_hidraw {
-                    for hp in &dev.hidraw_paths {
-                        cmd.args(["--bind", "/dev/null", hp]);
+
+        // Configure input visibility inside the game instance.
+        if let Some(session) = virtual_gamepads {
+            cmd.args(["--tmpfs", "/dev/input"]);
+
+            for device in input_devices {
+                if !device.enabled {
+                    continue;
+                }
+
+                if matches!(device.device_type, DeviceType::Keyboard | DeviceType::Mouse) {
+                    cmd.args(["--dev-bind", &device.path, &device.path]);
+                }
+            }
+
+            for virtual_path in session.gamepads_for_instance(i) {
+                cmd.args(["--dev-bind", virtual_path, virtual_path]);
+            }
+
+            cmd.env("PROTON_DISABLE_HIDRAW", "1");
+        } else {
+            for (d, dev) in input_devices.iter().enumerate() {
+                if !dev.enabled
+                    || (!instance.devices.contains(&d) && dev.device_type == DeviceType::Gamepad)
+                {
+                    cmd.args(["--bind", "/dev/null", &dev.path]);
+
+                    if h.enable_hidraw {
+                        for hp in &dev.hidraw_paths {
+                            cmd.args(["--bind", "/dev/null", hp]);
+                        }
                     }
                 }
             }
         }
-
         if cfg.profile_unique_dirs {
             if win {
                 let path_pfx_user = path_pfx.join("drive_c/users/steamuser");
@@ -292,7 +340,7 @@ pub fn launch_cmds(
         if is_appimage {
             // Because we are faking temp directory, this makes the system use the real vulkan directory for games
             // Used here because the env var is set durring bwrap and gamescope process starting so env cant be cleared at this stage.
-            cmd.args(["--unsetenv","VK_DRIVER_FILES"]); 
+            cmd.args(["--unsetenv", "VK_DRIVER_FILES"]);
         }
 
         if h.use_goldberg {
@@ -307,18 +355,16 @@ pub fn launch_cmds(
                 cmd.env("SteamGameId", &appid.to_string());
             }
 
-            let sdk32_link = std::fs::read_link(PATH_STEAM.join("sdk32")).map_err(|e| format!("Failed to read sdk32 link: {}", e))?;
-            let sdk64_link = std::fs::read_link(PATH_STEAM.join("sdk64")).map_err(|e| format!("Failed to read sdk64 link: {}", e))?;
+            let sdk32_link = std::fs::read_link(PATH_STEAM.join("sdk32"))
+                .map_err(|e| format!("Failed to read sdk32 link: {}", e))?;
+            let sdk64_link = std::fs::read_link(PATH_STEAM.join("sdk64"))
+                .map_err(|e| format!("Failed to read sdk64 link: {}", e))?;
 
-            cmd.arg("--bind").args([
-                PATH_RES.join("goldberg/linux32"),
-                sdk32_link,
-            ]);
+            cmd.arg("--bind")
+                .args([PATH_RES.join("goldberg/linux32"), sdk32_link]);
 
-            cmd.arg("--bind").args([
-                PATH_RES.join("goldberg/linux64"),
-                sdk64_link,
-            ]);
+            cmd.arg("--bind")
+                .args([PATH_RES.join("goldberg/linux64"), sdk64_link]);
 
             if win {
                 cmd.arg("--bind").args([
@@ -345,9 +391,8 @@ pub fn launch_cmds(
                     cmd.arg("--");
                 }
                 "sniper" => {
-                    let sniper_path = PATH_STEAM.join(
-                        "steam/steamapps/common/SteamLinuxRuntime_sniper/_v2-entry-point",
-                    );
+                    let sniper_path = PATH_STEAM
+                        .join("steam/steamapps/common/SteamLinuxRuntime_sniper/_v2-entry-point");
                     // old installations of sniper go in a folder named -arm64 even though it is x86_64?
                     let sniper_arm_path = PATH_STEAM.join(
                         "steam/steamapps/common/SteamLinuxRuntime_sniper-arm64/_v2-entry-point",
@@ -361,16 +406,14 @@ pub fn launch_cmds(
                 }
                 "steamrt4" => {
                     cmd.arg(
-                        PATH_STEAM.join(
-                            "steam/steamapps/common/SteamLinuxRuntime_4/_v2-entry-point",
-                        ),
+                        PATH_STEAM
+                            .join("steam/steamapps/common/SteamLinuxRuntime_4/_v2-entry-point"),
                     );
                     cmd.arg("--");
                 }
                 _ => {}
             };
         }
-
 
         cmd.arg(&path_exec);
 

@@ -31,6 +31,8 @@ pub struct PartyConfig {
     #[serde(default = "default_true")]
     pub kbm_support: bool,
     #[serde(default)]
+    pub use_virtual_gamepads: bool,
+    #[serde(default)]
     pub proton_version: String,
     #[serde(default = "default_true")]
     pub proton_separate_pfxs: bool,
@@ -58,6 +60,7 @@ impl Default for PartyConfig {
             gamescope_sdl_backend: true,
             gamescope_force_grab_cursor: false,
             kbm_support: true,
+            use_virtual_gamepads: false,
             proton_version: "".to_string(),
             proton_separate_pfxs: true,
             proton_wow64: true,

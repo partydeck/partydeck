@@ -142,6 +142,9 @@ impl InputDevice {
 pub fn scan_input_devices(filter: &PadFilterType) -> Vec<InputDevice> {
     let mut pads: Vec<InputDevice> = Vec::new();
     for dev in evdev::enumerate() {
+        if crate::virtual_gamepad::is_partydeck_virtual_device(&dev.1) {
+            continue;
+        }
         let enabled = match filter {
             PadFilterType::All => true,
             PadFilterType::NoSteamInput => dev.1.input_id().vendor() != 0x28de,

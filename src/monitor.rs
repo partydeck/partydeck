@@ -100,11 +100,37 @@ pub fn get_x11_dpi_scale() -> f32 {
     1.0
 }
 
+/// Is this an output that no display is actually plugged into?
+///
+/// The kernel's simpledrm driver registers the EFI boot framebuffer as a DRM connector named
+/// `Unknown-N` (some drivers use `None-N`), and it reports as connected forever because there
+/// is no hardware behind it to say otherwise. Usually the real GPU driver evicts simpledrm
+/// during boot, but on setups where it survives, the compositor treats it as a real screen.
+/// It can even be handed the primary role, in which case it is sorted to the front here and
+/// becomes monitor 0, so instances assigned to it are placed on a display that does not exist
+/// and the windows simply never appear.
+fn is_phantom(name: &str) -> bool {
+    let n = name.to_ascii_lowercase();
+    n.starts_with("unknown") || n.starts_with("none-")
+}
+
 pub fn get_monitors_errorless() -> Vec<Monitor> {
     let mut monitors = Vec::new();
 
     if let Ok(ret_monitors) = get_monitors_x11() {
         monitors = ret_monitors;
+    }
+
+    // Only filter if a real monitor survives it, so a machine that genuinely has nothing else
+    // still gets a usable display rather than falling through to the 1920x1080 guess below.
+    if monitors.iter().any(|m| !is_phantom(m.name())) {
+        monitors.retain(|m| {
+            let keep = !is_phantom(m.name());
+            if !keep {
+                println!("[PARTYDECK] Ignoring phantom output '{}' (no display attached)", m.name());
+            }
+            keep
+        });
     }
 
     if monitors.len() == 0 { // Quick patch for those who have no x11 visable monitors, so we dont just panic.

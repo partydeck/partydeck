@@ -50,6 +50,9 @@ pub struct PartyApp {
     pub handler_lite: Option<Handler>,
 
     pub loading_msg: Option<String>,
+    /// The message a task started with, kept so the elapsed time can be appended without
+    /// compounding it onto itself every frame.
+    pub loading_base_msg: Option<String>,
     pub loading_since: Option<std::time::Instant>,
     #[allow(dead_code)]
     pub task: Option<std::thread::JoinHandle<()>>,
@@ -91,6 +94,7 @@ impl PartyApp {
             handler_lite,
             profiles: scan_profiles(false),
             loading_msg: None,
+            loading_base_msg: None,
             loading_since: None,
             task: None,
         };
@@ -172,14 +176,21 @@ impl eframe::App for PartyApp {
                 let _ = handle.join();
                 self.loading_since = None;
                 self.loading_msg = None;
+                self.loading_base_msg = None;
             } else {
                 self.task = Some(handle);
             }
         }
         if let Some(start) = self.loading_since {
-            if start.elapsed() > std::time::Duration::from_secs(60) {
-                // Give up waiting after one minute
-                self.loading_msg = Some("Operation timed out".to_string());
+            // Show how long this has been going rather than claiming it failed. Nothing is
+            // actually abandoned here, the task keeps running either way, so the old
+            // "Operation timed out" text was reporting a failure that had not happened.
+            // A large game copying or a cold Proton prefix build passes a minute easily.
+            let secs = start.elapsed().as_secs();
+            if secs > 20 {
+                if let Some(base) = &self.loading_base_msg {
+                    self.loading_msg = Some(format!("{base} ({secs}s)"));
+                }
             }
         }
         if let Some(msg) = &self.loading_msg {
@@ -212,6 +223,7 @@ impl PartyApp {
         F: FnOnce() + Send + 'static,
     {
         self.loading_msg = Some(msg.to_string());
+        self.loading_base_msg = Some(msg.to_string());
         self.loading_since = Some(std::time::Instant::now());
         self.task = Some(std::thread::spawn(f));
     }

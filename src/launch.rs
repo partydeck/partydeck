@@ -9,6 +9,21 @@ use crate::paths::*;
 use crate::profiles::{create_profile, create_profile_gamesave};
 use crate::util::*;
 
+/// Legacy /dev/input/jsN nodes belonging to the same physical device as an evdev node.
+fn js_siblings(evdev_path: &str) -> Vec<String> {
+    let Some(name) = Path::new(evdev_path).file_name().and_then(|s| s.to_str()) else {
+        return Vec::new();
+    };
+    std::fs::read_dir(format!("/sys/class/input/{name}/device"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|e| e.file_name().to_str().map(str::to_string))
+        .filter(|n| n.starts_with("js"))
+        .map(|n| format!("/dev/input/{n}"))
+        .collect()
+}
+
 pub fn setup_profiles(
     h: &Handler,
     instances: &Vec<Instance>,
@@ -239,16 +254,47 @@ pub fn launch_cmds(
         cmd.arg("--die-with-parent");
         cmd.args(["--dev-bind", "/", "/"]);
         cmd.args(["--tmpfs", "/tmp"]);
-        // Mask out any gamepads that aren't this player's
+
+        // Show this instance only the devices it should see, rather than hiding the ones it
+        // should not.
+        //
+        // Masking works on the devices that exist when bwrap starts. Anything that appears
+        // afterwards was never masked anywhere, so it is visible to EVERY instance at once.
+        // That is not an edge case with wireless pads: they power themselves off when idle,
+        // and waking one destroys its kernel device and creates a new one, usually on a
+        // different /dev/input/eventN. The player wakes their pad and starts driving all four
+        // games.
+        //
+        // It cannot be fixed by masking harder, because you cannot bind over a path that does
+        // not exist yet. The list has to be inverted.
+        //
+        // The visibility rules are unchanged: a device is bound in unless it is disabled, or
+        // it is a gamepad assigned to somebody else. A device that shows up later is now
+        // simply absent instead of shared.
+        cmd.args(["--tmpfs", "/dev/input"]);
         for (d, dev) in input_devices.iter().enumerate() {
             if !dev.enabled
                 || (!instance.devices.contains(&d) && dev.device_type == DeviceType::Gamepad)
             {
-                cmd.args(["--bind", "/dev/null", &dev.path]);
-                // Wine's winebus reads controllers via /dev/hidraw* when
-                // hidraw is exposed, so masking only the evdev node leaks
-                // input to every instance.
-                if h.enable_hidraw {
+                continue;
+            }
+            if Path::new(&dev.path).exists() {
+                cmd.args(["--dev-bind", &dev.path, &dev.path]);
+            }
+            // Legacy /dev/input/jsN nodes are a separate file for the same device. evdev is
+            // preferred by SDL2, but titles that open jsN would find nothing under a tmpfs.
+            for js in js_siblings(&dev.path) {
+                cmd.args(["--dev-bind", &js, &js]);
+            }
+        }
+        // hidraw is not under /dev/input, so it still has to be masked rather than omitted.
+        // Wine's winebus reads controllers through it when hidraw is exposed, and leaving it
+        // open leaks input to every instance.
+        if h.enable_hidraw {
+            for (d, dev) in input_devices.iter().enumerate() {
+                if !dev.enabled
+                    || (!instance.devices.contains(&d) && dev.device_type == DeviceType::Gamepad)
+                {
                     for hp in &dev.hidraw_paths {
                         cmd.args(["--bind", "/dev/null", hp]);
                     }

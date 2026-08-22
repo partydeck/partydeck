@@ -71,7 +71,6 @@ const BUNDLE: &[(&str, &str)] = &[
     ("deps/releases/umu/umu-run", "bin/umu-run"),
     // resources
     ("res/splitscreen_kwin.js", "res/splitscreen_kwin.js"),
-    ("res/splitscreen_kwin_vertical.js", "res/splitscreen_kwin_vertical.js"),
 ];
 
 

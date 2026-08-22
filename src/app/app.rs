@@ -469,6 +469,7 @@ impl PartyApp {
 
         let instances = self.instances.clone();
         let dev_infos: Vec<DeviceInfo> = self.input_devices.iter().map(|p| p.info()).collect();
+        let monitors = self.monitors.clone();
 
         let cfg = self.options.clone();
         let _ = save_cfg(&cfg);
@@ -493,7 +494,9 @@ impl PartyApp {
                     msg("Failed mounting game directories", &format!("{err}"));
                     return;
                 }
-                if let Err(err) = launch_game(&handler, &dev_infos, &instances, &cfg) {
+                if let Err(err) =
+                    launch_game(&handler, &dev_infos, &instances, &monitors, &cfg)
+                {
                     println!("[partydeck] Error launching instances: {}", err);
                     msg("Launch Error", &format!("{err}"));
                 }

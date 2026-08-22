@@ -1,7 +1,10 @@
+const partydeckConfig = { targets: [], verticalTwoPlayer: false } // PARTYDECK_CONFIG
+const hookedWindows = new Set()
+
 const x = [
   [],
   [0],
-  [0, 0],
+  partydeckConfig.verticalTwoPlayer ? [0, 0.5] : [0, 0],
   [0, 0, 0.5],
   [0, 0.5, 0, 0.5]
 ]
@@ -9,7 +12,7 @@ const x = [
 const y = [
   [],
   [0],
-  [0, 0.5],
+  partydeckConfig.verticalTwoPlayer ? [0, 0] : [0, 0.5],
   [0, 0.5, 0.5],
   [0, 0, 0.5, 0.5]
 ]
@@ -17,7 +20,7 @@ const y = [
 const width = [
   [],
   [1],
-  [1, 1],
+  partydeckConfig.verticalTwoPlayer ? [0.5, 0.5] : [1, 1],
   [1, 0.5, 0.5],
   [0.5, 0.5, 0.5, 0.5]
 ]
@@ -25,82 +28,101 @@ const width = [
 const height = [
   [],
   [1],
-  [0.5, 0.5],
+  partydeckConfig.verticalTwoPlayer ? [1, 1] : [0.5, 0.5],
   [0.5, 0.5, 0.5],
   [0.5, 0.5, 0.5, 0.5]
 ]
 
-function getGamescopeClients() {
-  var allClients = workspace.windowList();
-  var gamescopeClients = [];
-
-  for (var i = 0; i < allClients.length; i++) {
-    if (
-      allClients[i].resourceClass == "gamescope" ||
-      allClients[i].resourceClass == "gamescope-kbm"
-    ) {
-      gamescopeClients.push(allClients[i]);
-    }
-  }
-  return gamescopeClients;
+function targetFor(window) {
+  return partydeckConfig.targets.find(target => target.pid == window.pid) || null
 }
 
-function numGamescopeClientsInOutput(output) {
-  var gamescopeClients = getGamescopeClients();
-  var count = 0;
-  for (var i = 0; i < gamescopeClients.length; i++) {
-    if (gamescopeClients[i].output == output) {
-      count++;
-    }
+function outputByName(name) {
+  // SDL may append a model name while KWin exposes only the DRM connector.
+  return workspace.screens.find(output =>
+    name == output.name || name.startsWith(output.name + " ")
+  ) || null
+}
+
+function hookWindow(window) {
+  if (hookedWindows.has(window)) {
+    return
   }
-  return count;
+  hookedWindows.add(window)
+  window.outputChanged.connect(gamescopeSplitscreen)
+  window.frameGeometryChanged.connect(gamescopeSplitscreen)
+  window.closed.connect(() => hookedWindows.delete(window))
+}
+
+function getGamescopeClients() {
+  return workspace.stackingOrder.filter(window => targetFor(window) != null)
 }
 
 function gamescopeAboveBelow() {
-  var gamescopeClients = getGamescopeClients();
-  for (var i = 0; i < gamescopeClients.length; i++) {
-    if (
-      workspace.activeWindow.resourceClass == "gamescope" ||
-      workspace.activeWindow.resourceClass == "gamescope-kbm"
-    ) {
-      gamescopeClients[i].keepAbove = true;
-    } else {
-      gamescopeClients[i].keepAbove = false;
-    }
-  }
+  const activeWindow = workspace.activeWindow
+  const keepAbove = activeWindow != null && targetFor(activeWindow) != null
+  getGamescopeClients().forEach(window => window.keepAbove = keepAbove)
 }
 
 function gamescopeSplitscreen() {
-  var gamescopeClients = getGamescopeClients();
+  const outputClients = new Map()
 
-  var screenMap = new Map();
-  var screens = workspace.screens;
-  for (var j = 0; j < screens.length; j++) {
-    screenMap.set(screens[j], 0);
-  }
+  getGamescopeClients().forEach(client => {
+    hookWindow(client)
+    const target = targetFor(client)
+    const output = outputByName(target.output)
+    if (output == null) {
+      print(
+        "[partydeck] KWin placement failed: pid=" + client.pid +
+        ", missing output=" + target.output
+      )
+      return
+    }
 
-  for (var i = 0; i < gamescopeClients.length; i++) {
-    var monitor = gamescopeClients[i].output;
-    var monitorX = monitor.geometry.x;
-    var monitorY = monitor.geometry.y;
-    var monitorWidth = monitor.geometry.width;
-    var monitorHeight = monitor.geometry.height;
+    workspace.sendClientToScreen(client, output)
+    const clients = outputClients.get(output) || []
+    clients.push(client)
+    outputClients.set(output, clients)
+  })
 
-    var playerCount = numGamescopeClientsInOutput(monitor);
-    var playerIndex = screenMap.get(monitor);
-    screenMap.set(monitor, playerIndex + 1);
+  outputClients.forEach((clients, output) => {
+    const playerCount = clients.length
+    if (playerCount >= x.length) {
+      print(
+        "[partydeck] KWin placement failed: " + playerCount +
+        " instances target output " + output.name + "; maximum is " + (x.length - 1)
+      )
+      return
+    }
 
-    gamescopeClients[i].noBorder = true;
-    gamescopeClients[i].frameGeometry = {
-      x: monitorX + x[playerCount][playerIndex] * monitorWidth,
-      y: monitorY + y[playerCount][playerIndex] * monitorHeight,
-      width: monitorWidth * width[playerCount][playerIndex],
-      height: monitorHeight * height[playerCount][playerIndex],
-    };
-  }
-  gamescopeAboveBelow();
+    const monitor = output.geometry
+    clients.forEach((client, playerIndex) => {
+      const fullScreen = playerCount == 1
+      if (client.fullScreen != fullScreen) {
+        client.fullScreen = fullScreen
+      }
+      client.noBorder = true
+      const geometry = {
+        x: monitor.x + x[playerCount][playerIndex] * monitor.width,
+        y: monitor.y + y[playerCount][playerIndex] * monitor.height,
+        width: monitor.width * width[playerCount][playerIndex],
+        height: monitor.height * height[playerCount][playerIndex],
+      }
+      if (
+        client.frameGeometry.x != geometry.x ||
+        client.frameGeometry.y != geometry.y ||
+        client.frameGeometry.width != geometry.width ||
+        client.frameGeometry.height != geometry.height
+      ) {
+        client.frameGeometry = geometry
+      }
+    })
+  })
+  gamescopeAboveBelow()
 }
 
-workspace.windowAdded.connect(gamescopeSplitscreen);
-workspace.windowRemoved.connect(gamescopeSplitscreen);
-workspace.windowActivated.connect(gamescopeAboveBelow);
+workspace.windowAdded.connect(gamescopeSplitscreen)
+workspace.windowRemoved.connect(gamescopeSplitscreen)
+workspace.windowActivated.connect(gamescopeAboveBelow)
+workspace.screensChanged.connect(gamescopeSplitscreen)
+gamescopeSplitscreen()

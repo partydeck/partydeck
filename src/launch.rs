@@ -5,9 +5,13 @@ use crate::app::{PartyConfig, PadFilterType};
 use crate::handler::*;
 use crate::input::*;
 use crate::instance::*;
+use crate::monitor::Monitor;
 use crate::paths::*;
 use crate::profiles::{create_profile, create_profile_gamesave};
 use crate::util::*;
+
+const KWIN_CONFIG_MARKER: &str =
+    "const partydeckConfig = { targets: [], verticalTwoPlayer: false } // PARTYDECK_CONFIG";
 
 pub fn setup_profiles(
     h: &Handler,
@@ -34,38 +38,69 @@ pub fn launch_game(
     h: &Handler,
     input_devices: &[DeviceInfo],
     instances: &Vec<Instance>,
+    monitors: &[Monitor],
     cfg: &PartyConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let new_cmds = launch_cmds(h, input_devices, instances, cfg)?;
     print_launch_cmds(&new_cmds);
 
-    if cfg.enable_kwin_script {
-        let script = match cfg.vertical_two_player {
-            true => "splitscreen_kwin_vertical.js",
-            false => "splitscreen_kwin.js",
-        };
-
-        kwin_dbus_start_script(PATH_RES.join(script)).map_err(|e| format!("Failed to start KWin script: {}", e))?;
-    }
-
-    let sleep_time = match h.pause_between_starts {
-        Some(f) => f,
-        None => 0.5,
+    let target_outputs = if cfg.enable_kwin_script {
+        instances
+            .iter()
+            .map(|instance| {
+                monitors
+                    .get(instance.monitor)
+                    .map(|monitor| monitor.name().to_owned())
+                    .ok_or_else(|| format!("Monitor index {} is not available", instance.monitor))
+            })
+            .collect::<Result<Vec<_>, _>>()?
+    } else {
+        Vec::new()
     };
-
+    let sleep_time = h.pause_between_starts.unwrap_or(0.5);
     let mut handles = Vec::new();
+    let mut kwin_targets = Vec::new();
 
-    let mut i = 0;
-    for mut cmd in new_cmds {
-        let handle = cmd.spawn().map_err(|e| {
-            format!("Failed to start '{}': {}", cmd.get_program().to_string_lossy(), e)
-        })?;
+    for (i, mut cmd) in new_cmds.into_iter().enumerate() {
+        let handle = match cmd.spawn() {
+            Ok(handle) => handle,
+            Err(err) => {
+                terminate_children(&mut handles);
+                return Err(format!(
+                    "Failed to start '{}': {}",
+                    cmd.get_program().to_string_lossy(),
+                    err
+                )
+                .into());
+            }
+        };
+        if cfg.enable_kwin_script {
+            println!(
+                "[partydeck] KWin target: instance={}, pid={}, output={}",
+                i + 1,
+                handle.id(),
+                target_outputs[i]
+            );
+            kwin_targets.push((handle.id(), target_outputs[i].clone()));
+        }
         handles.push(handle);
 
         if i < instances.len() - 1 {
             std::thread::sleep(std::time::Duration::from_secs_f64(sleep_time));
         }
-        i += 1;
+    }
+
+    if cfg.enable_kwin_script {
+        let result = write_kwin_script(
+            PATH_RES.join("splitscreen_kwin.js"),
+            &kwin_targets,
+            cfg.vertical_two_player,
+        )
+        .and_then(kwin_dbus_start_script);
+        if let Err(err) = result {
+            terminate_children(&mut handles);
+            return Err(format!("Failed to start KWin script: {err}").into());
+        }
     }
 
     for mut handle in handles {
@@ -73,6 +108,57 @@ pub fn launch_game(
     }
 
     Ok(())
+}
+
+fn terminate_children(handles: &mut [std::process::Child]) {
+    for handle in handles {
+        let _ = handle.kill();
+        let _ = handle.wait();
+    }
+}
+
+fn render_kwin_script(
+    template: &str,
+    targets: &[(u32, String)],
+    vertical_two_player: bool,
+) -> Result<String, Box<dyn std::error::Error>> {
+    if !template.contains(KWIN_CONFIG_MARKER) {
+        return Err("KWin script template is missing its config marker".into());
+    }
+
+    let targets = targets
+        .iter()
+        .map(|(pid, output)| serde_json::json!({ "pid": pid, "output": output }))
+        .collect::<Vec<_>>();
+    let config = serde_json::to_string(&serde_json::json!({
+        "targets": targets,
+        "verticalTwoPlayer": vertical_two_player,
+    }))?;
+    Ok(template.replacen(
+        KWIN_CONFIG_MARKER,
+        &format!("const partydeckConfig = {config};"),
+        1,
+    ))
+}
+
+fn write_kwin_script(
+    template_path: PathBuf,
+    targets: &[(u32, String)],
+    vertical_two_player: bool,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let template = std::fs::read_to_string(&template_path)?;
+    let script = render_kwin_script(&template, targets, vertical_two_player)?;
+    let generated_path = PATH_PARTY.join("tmp/splitscreen_kwin.js");
+    if let Some(parent) = generated_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&generated_path, script)?;
+
+    println!(
+        "[partydeck] Generated KWin target script: {}",
+        generated_path.display()
+    );
+    Ok(generated_path)
 }
 
 pub fn launch_cmds(
@@ -391,6 +477,33 @@ pub fn launch_cmds(
     }
 
     Ok(cmds)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renders_kwin_config_as_json() {
+        let script = render_kwin_script(
+            KWIN_CONFIG_MARKER,
+            &[(42, "DP-2 \"34 inch\"".to_owned())],
+            true,
+        )
+        .unwrap();
+
+        assert!(!script.contains(KWIN_CONFIG_MARKER));
+        assert!(script.contains("\"pid\":42"));
+        assert!(script.contains("\"output\":\"DP-2 \\\"34 inch\\\"\""));
+        assert!(script.contains("\"verticalTwoPlayer\":true"));
+    }
+
+    #[test]
+    fn rejects_kwin_template_without_config_marker() {
+        let result = render_kwin_script("print('missing marker')", &[], false);
+
+        assert!(result.is_err());
+    }
 }
 
 fn print_launch_cmds(cmds: &Vec<Command>) {

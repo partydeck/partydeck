@@ -49,6 +49,23 @@ SteamOS includes all of PartyDeck's dependencies, but you will need to be on Ste
 
 If you're in desktop mode, simply run the `partydeck` executable. To use PartyDeck in Gaming Mode, add `GamingModeLauncher.sh` as a shortcut to Steam, and in the settings for that shortcut disable Steam Input.
 
+### Bazzite Deck
+
+Bazzite 44 stable is built on GLIBC_2.42. To use PartyDeck, rebase to testing for your hardware and reboot:
+
+```
+# For AMD/Intel builds
+rpm-ostree rebase ostree-image-signed:docker://ghcr.io/ublue-os/bazzite-deck:testing
+
+# For Nvidia builds
+rpm-ostree rebase ostree-image-signed:docker://ghcr.io/ublue-os/bazzite-deck-nvidia:testing
+
+# Reboot
+systemctl reboot
+```
+
+*Bazzite 45 will release around October 2026, removing the need to do this*
+
 ### Desktop Linux
 
 PartyDeck's splitscreen tiling script requires KDE Plasma 6.0 and up; if you're on an older version of Plasma or not running Plasma at all, you can run PartyDeck without the script, but then it's up to you to resize and reposition the game windows yourself. You'll also need to install, Gamescope, Bubblewrap, and Fuse-overlayfs using your distro's package manager. Then, simply run the `partydeck` executable to get started. 

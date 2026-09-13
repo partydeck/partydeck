@@ -1,11 +1,12 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
 
 use super::config::*;
 use crate::handler::*;
 use crate::input::*;
 use crate::instance::*;
+use crate::instance_profiles::load_last_instance_profiles;
 use crate::launch::*;
 use crate::monitor::Monitor;
 use crate::profiles::*;
@@ -307,10 +308,22 @@ impl PartyApp {
                             }
                         }
                         None => {
+                            let instance_index = self.instances.len();
+                            let remembered_profiles = load_last_instance_profiles();
+
+                            let profselection = remembered_profiles
+                                .profiles
+                                .get(instance_index)
+                                .and_then(|profile_name| {
+                                    self.profiles
+                                        .iter()
+                                        .position(|profile| profile == profile_name)
+                                })
+                                .unwrap_or(0);
                             self.instances.push(Instance {
                                 devices: vec![i],
                                 profname: String::new(),
-                                profselection: 0,
+                                profselection,
                                 monitor: 0,
                                 width: 0,
                                 height: 0,

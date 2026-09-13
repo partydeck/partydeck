@@ -2,6 +2,7 @@ mod app;
 mod handler;
 mod input;
 mod instance;
+mod instance_profiles;
 mod launch;
 mod monitor;
 mod paths;
@@ -20,7 +21,7 @@ fn main() -> eframe::Result {
         println!("{}", USAGE_TEXT);
         std::process::exit(0);
     }
-    
+
     let monitors = get_monitors_errorless();
 
     println!("[partydeck] Monitors detected:");
@@ -101,8 +102,16 @@ fn main() -> eframe::Result {
     if !PATH_PARTY.join("goldberg_data").exists() {
         std::fs::create_dir_all(PATH_PARTY.join("goldberg_data/steam_settings"))
             .expect("Failed to create goldberg data!");
-        std::fs::write(PATH_PARTY.join("goldberg_data/steam_settings/auto_accept_invite.txt"), "").expect("failed to create auto_accept_invite.txt");
-        std::fs::write(PATH_PARTY.join("goldberg_data/steam_settings/auto_send_invite.txt"), "").expect("failed to create auto_send_invite.txt");
+        std::fs::write(
+            PATH_PARTY.join("goldberg_data/steam_settings/auto_accept_invite.txt"),
+            "",
+        )
+        .expect("failed to create auto_accept_invite.txt");
+        std::fs::write(
+            PATH_PARTY.join("goldberg_data/steam_settings/auto_send_invite.txt"),
+            "",
+        )
+        .expect("failed to create auto_send_invite.txt");
     }
 
     remove_guest_profiles().unwrap();

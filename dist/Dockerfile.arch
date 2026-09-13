@@ -11,7 +11,7 @@ FROM archlinux:base-devel AS base
 RUN pacman-key --init &&                                                        \
     pacman -Syu --noconfirm &&                                                  \
     pacman -S --noconfirm --needed                                              \
-        git meson clang glslang libcap wlroots0.18 sdl2                         \
+        git meson clang glslang libcap wlroots0.20 sdl2                         \
         vulkan-headers libx11 libxmu libxcomposite libxrender libxres           \
         libxtst libxkbcommon libdrm libinput wayland-protocols benchmark        \
         xorg-xwayland pipewire cmake libavif libheif aom rav1e libdecor         \

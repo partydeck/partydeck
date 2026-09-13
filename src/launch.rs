@@ -51,8 +51,8 @@ pub fn launch_game(
     instances: &Vec<Instance>,
     cfg: &PartyConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let new_cmds = launch_cmds(h, input_devices, instances, cfg)?;
-    print_launch_cmds(&new_cmds);
+    let (prelaunch_cmds, new_cmds) = launch_cmds(h, input_devices, instances, cfg)?;
+    print_launch_cmds(&prelaunch_cmds, &new_cmds);
 
     if cfg.enable_kwin_script {
         let script = match cfg.vertical_two_player {
@@ -68,10 +68,33 @@ pub fn launch_game(
         None => 0.5,
     };
 
+    let mut prelaunch_handles = Vec::new();
+
+    let mut i = 0;
+    for mut cmd in prelaunch_cmds {
+        print_cmd_exec(&cmd);
+
+        let handle = cmd.spawn().map_err(|e| {
+            format!("Failed to prelaunch '{}': {}", cmd.get_program().to_string_lossy(), e)
+        })?;
+        prelaunch_handles.push(handle);
+
+        if i < instances.len() - 1 {
+            std::thread::sleep(std::time::Duration::from_secs_f64(sleep_time));
+        }
+        i += 1;
+    }
+
+    for mut handle in prelaunch_handles {
+        handle.wait()?;
+    }
+
     let mut handles = Vec::new();
 
     let mut i = 0;
     for mut cmd in new_cmds {
+        print_cmd_exec(&cmd);
+
         let handle = cmd.spawn().map_err(|e| {
             format!("Failed to start '{}': {}", cmd.get_program().to_string_lossy(), e)
         })?;
@@ -95,10 +118,11 @@ pub fn launch_cmds(
     input_devices: &[DeviceInfo],
     instances: &Vec<Instance>,
     cfg: &PartyConfig,
-) -> Result<Vec<std::process::Command>, Box<dyn std::error::Error>> {
+) -> Result<(Vec<std::process::Command>, Vec<std::process::Command>), Box<dyn std::error::Error>> {
     let win = h.win();
     let exec = Path::new(&h.exec);
     let runtime = h.runtime.as_str();
+    let prelaunch = h.prelaunch.as_str();
     let gamescope = match cfg.kbm_support {
         true => BIN_GSC_KBM.as_path(),
         false => Path::new("gamescope"),
@@ -125,6 +149,33 @@ pub fn launch_cmds(
     {
         return Err(format!("Steam Runtime {runtime} not found! Runtime must be installed on the same drive that the Steam client is installed on.").into());
     }
+
+
+    let mut prelaunch_cmds: Vec<Command>;
+    let prelaunch_exists = !prelaunch.is_empty();
+    
+    if !prelaunch_exists {
+        prelaunch_cmds = Vec::new()
+    } else {
+        let parts = match shell_words::split(prelaunch) {
+            Ok(parts) => parts,
+            Err(e) => {
+                return Err(format!("Invalid prelaunch command: {}", e).into())
+            }
+        };
+
+        let (program, args) = parts
+            .split_first()
+            .ok_or("prelaunch command is empty")?;
+
+        prelaunch_cmds = (0..instances.len())
+            .map(|_| {
+                let mut cmd = Command::new(program);
+                cmd.args(args);
+                cmd
+            })
+            .collect();
+    };
 
     let mut cmds: Vec<Command> = (0..instances.len())
         .map(|_| Command::new(gamescope))
@@ -405,6 +456,34 @@ pub fn launch_cmds(
 
         cmd.arg(&path_exec);
 
+        if prelaunch_exists {
+            let prelaunch_cmd = &mut prelaunch_cmds[i];
+
+            prelaunch_cmd.current_dir(&h.path_handler);
+
+            prelaunch_cmd.env("PROFILE", &instance.profname);
+            prelaunch_cmd.env("WIDTH", instance.width.to_string());
+            prelaunch_cmd.env("HEIGHT", instance.height.to_string());
+            prelaunch_cmd.env("RESOLUTION", format!("{}x{}", instance.width, instance.height));
+            prelaunch_cmd.env("INSTANCECOUNT", instances.len().to_string());
+            prelaunch_cmd.env("INSTANCENUM", i.to_string());
+            prelaunch_cmd.env("GAMEDIR", &gamedir);
+            prelaunch_cmd.env("HANDLERDIR", &h.path_handler);
+
+            if h.use_goldberg {
+                prelaunch_cmd.env("GseAppPath", PATH_PARTY.join("goldberg_data"));
+                prelaunch_cmd.env("GseSavePath", path_prof.join("steam"));
+                prelaunch_cmd.env("SteamAppUser", instance.profname.clone());
+                prelaunch_cmd.env("SteamUser", instance.profname.clone());
+                prelaunch_cmd.env("SteamClientLaunch", "1");
+                prelaunch_cmd.env("SteamEnv", "1");
+                if let Some(appid) = h.steam_appid {
+                    prelaunch_cmd.env("SteamAppId", &appid.to_string());
+                    prelaunch_cmd.env("SteamGameId", &appid.to_string());
+                }
+            }
+        }
+
         for arg in h.args.split_whitespace() {
             let processed_arg = match arg {
                 "$PROFILE" => &instance.profname,
@@ -421,14 +500,53 @@ pub fn launch_cmds(
         }
     }
 
-    Ok(cmds)
+    Ok((prelaunch_cmds, cmds))
 }
 
-fn print_launch_cmds(cmds: &Vec<Command>) {
-    for (i, cmd) in cmds.iter().enumerate() {
+fn print_cmd_exec(cmd: &Command) {
+    println!("[partydeck] Executing {} {}", 
+        cmd.get_program().to_string_lossy(),
+        cmd.get_args()
+            .map(|a| format!(" \\\n        {}", a.to_string_lossy()))
+            .collect::<String>()
+    );
+}
+
+fn print_launch_cmds(prelaunch_cmds: &Vec<Command>, cmds: &Vec<Command>) {
+    for i in 0..cmds.len() {
+        let cmd = &cmds[i];
+
+        println!("\n[partydeck] =====================");
         println!("[partydeck] INSTANCE {}:", i + 1);
 
         let cwd = cmd.get_current_dir().unwrap_or_else(|| Path::new(""));
+
+        println!("[partydeck] ---------------------");
+
+        if i < prelaunch_cmds.len() {
+            println!("[partydeck] PRE-LAUNCH:");
+
+            let prelaunch_cmd = &prelaunch_cmds[i];
+
+            let prelaunch_cwd = prelaunch_cmd.get_current_dir().unwrap_or_else(|| Path::new(""));
+            println!("[partydeck] CWD={}", prelaunch_cwd.display());
+
+            for var in prelaunch_cmd.get_envs() {
+                let value = var.1.ok_or_else(|| "").unwrap_or_default();
+                println!(
+                    "[partydeck] {}={}",
+                    var.0.to_string_lossy(),
+                    value.display()
+                );
+            }
+
+            println!("[partydeck] \"{}\"", prelaunch_cmd.get_program().display());
+
+            println!("[partydeck] ---------------------");
+        }
+
+        println!("[partydeck] LAUNCH:");
+
         println!("[partydeck] CWD={}", cwd.display());
 
         for var in cmd.get_envs() {
@@ -442,21 +560,7 @@ fn print_launch_cmds(cmds: &Vec<Command>) {
 
         println!("[partydeck] \"{}\"", cmd.get_program().display());
 
-        print!("[partydeck] ");
-        for arg in cmd.get_args() {
-            let fmtarg = arg.to_string_lossy();
-            if fmtarg == "--bind"
-                || fmtarg == "bwrap"
-                || (fmtarg.starts_with("/") && fmtarg.len() > 1)
-            {
-                print!("\n[partydeck] ");
-            } else {
-                print!(" ");
-            }
-            print!("\"{}\"", fmtarg);
-        }
-
-        println!("\n[partydeck] ---------------------");
+        println!("[partydeck] =====================\n");
     }
 }
 

@@ -107,11 +107,26 @@ impl PartyApp {
                     self.cur_page = MenuPage::EditHandler;
                 }
                 if ui.button("⬇").clicked() {
-                    if let Err(e) = import_pd2() {
-                        msg("Error", &format!("Error importing PD2: {}", e));
-                    } else {
-                        self.handlers = scan_handlers();
+                    let result = import_pd2();
+                    if let Err(err) = &result {
+                        msg("Error", &format!("Error importing PD2: {}", err));
+                    } else if let Some(handler) = result.unwrap() {
+                        if !handler.prelaunch.is_empty() {
+                            if !yesno(
+                                "Trust handler?",
+                                &format!(
+                                    "This handler contains a prelaunch command that will execute before the game starts:\n\n\t{}\n\nDo you want to continue and trust this handler?",
+                                    handler.prelaunch
+                                ),
+                            ) {
+                                if let Err(err) = handler.remove_handler() {
+                                    println!("[partydeck] Failed to remove handler: {}", err);
+                                    msg("Error", &format!("Failed to remove handler: {}", err));
+                                }
+                            }
+                        }
                     }
+                    self.handlers = scan_handlers();
                 }
                 if ui.button("🔄").clicked() {
                     self.handlers = scan_handlers();

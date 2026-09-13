@@ -37,6 +37,7 @@ pub struct Handler {
     pub path_gameroot: String,
     pub runtime: String,
     pub exec: String,
+    pub prelaunch: String,
     pub args: String,
     pub env: String,
     #[serde(default)]
@@ -69,6 +70,7 @@ impl Default for Handler {
 
             runtime: String::new(),
             exec: String::new(),
+            prelaunch: String::new(),
             args: String::new(),
             env: String::new(),
             sdl2_override: SDL2Override::No,
@@ -323,14 +325,14 @@ pub fn scan_handlers() -> Vec<Handler> {
     out
 }
 
-pub fn import_pd2() -> Result<(), Box<dyn Error>> {
+pub fn import_pd2() -> Result<Option<Handler>, Box<dyn Error>> {
     let Some(file) = FileDialog::new()
         .set_title("Select File")
         .set_directory(&*PATH_HOME)
         .add_filter("PartyDeck Handler Package", &["pd2"])
         .pick_file()
     else {
-        return Ok(());
+        return Ok(None);
     };
 
     if !file.exists() || !file.is_file() || file.extension().unwrap_or_default() != "pd2" {
@@ -379,5 +381,7 @@ pub fn import_pd2() -> Result<(), Box<dyn Error>> {
     copy_dir_recursive(&dir_tmp, &path)?;
     clear_tmp()?;
 
-    Ok(())
+    let handler = Handler::from_json(&path.join("handler.json"))?;
+
+    Ok(Some(handler))
 }

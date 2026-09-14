@@ -30,8 +30,8 @@ const DEPS: &[Dep] = &[
         asset_contains: "emu-linux-release.tar.bz2",
         archive_name: "emu-linux-release.tar.bz2",
         format: ArchFmt::TarBz2,
-        static_url: "https://github.com/Detanup01/gbe_fork/releases/download/release-2026_05_30/emu-linux-release.tar.bz2",
-        static_hash: "113cf4f0f44ac10285eb03df82148f288a27ddd685470c33060e968f83e97d87",
+        static_url: "https://github.com/Detanup01/gbe_fork/releases/download/release-2026_08_23/emu-linux-release.tar.bz2",
+        static_hash: "ae1a950c650464e3efa533ab8ba446d575962b8f1045d4f289f7a54393e55282",
         marker: "gbe-linux/regular/x64/steamclient.so",
         rename_from: Some("gbe-linux"),
     },
@@ -40,8 +40,8 @@ const DEPS: &[Dep] = &[
         asset_contains: "emu-win-release.7z",
         archive_name: "emu-win-release.7z",
         format: ArchFmt::SevenZ,
-        static_url: "https://github.com/Detanup01/gbe_fork/releases/download/release-2026_05_30/emu-win-release.7z",
-        static_hash: "38d0ce822f78f5b22dd28d948f4b1c98bc65f5fc3a850b7775286743a60e3516",
+        static_url: "https://github.com/Detanup01/gbe_fork/releases/download/release-2026_08_23/emu-win-release.7z",
+        static_hash: "812dd5f6edd3f175219cc9836e55c1ef4154854a00fb0a6ff197254b85579baf",
         marker: "gbe-win/steamclient_experimental/steamclient.dll",
         rename_from: Some("gbe-win"),
     },
@@ -50,8 +50,8 @@ const DEPS: &[Dep] = &[
         asset_contains: "umu-launcher-",
         archive_name: "umu-launcher-latest-zipapp.tar",
         format: ArchFmt::Tar,
-        static_url: "https://github.com/Open-Wine-Components/umu-launcher/releases/download/1.4.0/umu-launcher-1.4.0-zipapp.tar",
-        static_hash: "138ce4b8843608a257d4bee88191ca78a989778bcefd8abb3c1d1aaac3ac6fb8",
+        static_url: "https://github.com/Open-Wine-Components/umu-launcher/releases/download/1.4.4/umu-launcher-1.4.4-zipapp.tar",
+        static_hash: "eb590691841f7fad3fc3ad8fd5db4ccb87849fe7948e62b28ece7a4ee48cc851",
         marker: "umu/umu-run",
         rename_from: None,
     },
@@ -84,7 +84,7 @@ macro_rules! build_println {
 #[allow(dead_code)]
 fn apply_patches(deps_dir: &std::path::Path) {
     let mut git_apply = std::process::Command::new("git");
-    git_apply.args(["apply", &deps_dir.join("deps.patch").to_string_lossy()]);
+    git_apply.args(["apply", "--allow-empty", &deps_dir.join("deps.patch").to_string_lossy()]);
     let _ = git_apply.spawn().map_err(|e| {
         build_println!("Failed to git apply the patches we have for our deps, this is most likely not a real error: {:?} - {:?}", git_apply.get_program().to_string_lossy(), e);
     });

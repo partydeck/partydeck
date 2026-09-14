@@ -6,7 +6,7 @@ use crate::handler::*;
 use crate::input::*;
 use crate::instance::*;
 use crate::paths::*;
-use crate::profiles::{create_profile, create_profile_gamesave};
+use crate::profiles::{create_profile, create_profile_gamesave, ensure_profile_steamid};
 use crate::util::*;
 
 /// Legacy /dev/input/jsN nodes belonging to the same physical device as an evdev node.
@@ -33,12 +33,15 @@ pub fn setup_profiles(
         if instance.profname.starts_with(".") {
             create_profile(&instance.profname)?;
         }
+        // Guarantee every profile (including pre-existing named ones) has a
+        // pinned Goldberg SteamID, so its game saves are stable and reusable.
+        let steamid = ensure_profile_steamid(&instance.profname);
         if h.is_saved_handler() {
             create_profile_gamesave(&instance.profname, h)?;
         }
         println!(
-            "[partydeck] - Profile: {}, Monitor: {}, Resolution: {}x{}",
-            instance.profname, instance.monitor, instance.width, instance.height
+            "[partydeck] - Profile: {}, SteamID: {}, Monitor: {}, Resolution: {}x{}",
+            instance.profname, steamid, instance.monitor, instance.width, instance.height
         );
     }
 

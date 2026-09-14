@@ -52,6 +52,13 @@ pub struct Handler {
     pub steam_appid: Option<u32>,
 
     pub game_null_paths: Vec<String>,
+
+    /// Where this game stores its per-account save, relative to a profile's
+    /// Windows user dir, using `$STEAMID` for the Goldberg account id — e.g.
+    /// `AppData/Roaming/EldenRing/$STEAMID`. Lets PartyDeck show which profile
+    /// owns which save and import existing saves. Empty = unknown (feature off).
+    #[serde(default)]
+    pub save_dir: String,
 }
 
 impl Default for Handler {
@@ -81,6 +88,7 @@ impl Default for Handler {
             steam_appid: None,
 
             game_null_paths: Vec::new(),
+            save_dir: String::new(),
         }
     }
 }

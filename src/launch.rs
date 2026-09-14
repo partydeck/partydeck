@@ -156,6 +156,7 @@ pub fn launch_cmds(
 
         cmd.current_dir(cwd);
 
+        cmd.env("SDL_VIDEODRIVER", "x11");
         if !win || !h.enable_hidraw {
             cmd.env("SDL_JOYSTICK_HIDAPI", "0");
         }

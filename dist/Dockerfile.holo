@@ -1,8 +1,6 @@
-# Builds both release artifacts (skeleton + AppImage) against SteamOS Holo glibc.
+# Builds release tarball against SteamOS Holo glibc.
 #   Build:    docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t partydeck-build -f dist/Dockerfile.holo .
-#   Skeleton: docker run --rm -v "$PWD:/workspace" partydeck-build
-#   Both: docker run --rm -v "$PWD:/workspace" partydeck-build bash dist/scripts/build_all.sh
-#   Appimage against skeleton: docker run --rm -v "$PWD:/workspace" partydeck-build bash dist/scripts/build_appimage.sh
+#   Run: docker run --rm -v "$PWD:/workspace" partydeck-build
 
 # Pinned for reproducibility / security
 FROM ghcr.io/steamdeckhomebrew/holo-toolchain-rust@sha256:818de45e147f35798c66498380b31bd1fe8bf75afdf0a22b027053706836faf1 AS base
@@ -24,10 +22,6 @@ RUN pacman -Sy --noconfirm --needed                                             
 # Image sets RUSTUP_HOME/CARGO_HOME=/.rustup,/.cargo; put cargo on PATH.
 ENV RUSTUP_HOME=/.rustup \
     PATH=/.cargo/bin:$PATH
-
-# Lets build_appimage.sh's debloated packages install under Holo: see dist/scripts/pacman_shim.sh.
-COPY dist/scripts/pacman_shim.sh /usr/local/bin/pacman
-RUN chmod +x /usr/local/bin/pacman
 
 FROM base AS runtime
 

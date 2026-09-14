@@ -1,0 +1,66 @@
+name: Build SteamOS tarball
+description: >
+  Build the Holo release tarball inside the Holo toolchain container. Assumes
+  the job already declared the holo-toolchain-rust container and checked out
+  the repo with submodules. Caches cargo + pacman.
+
+inputs:
+  version:
+    description: Version string embedded in artifact filenames (e.g. v1.2.3 or UNOFFICIAL).
+    required: true
+
+outputs:
+  tarball:
+    description: Path to the produced release tarball.
+    value: partydeck-${{ inputs.version }}-SteamOS-x86_64.tar.gz
+
+runs:
+  using: composite
+  steps:
+    - name: Upgrade repos
+      #  Upgrades the pacman repositories to 3.8.1x; Temporary step until
+      #  SteamDeckHomebrew creates a holo 3.8 container
+      shell: bash
+      run: |
+        sed -i \
+          -e 's/-3\.7/-3.8.1x/g' \
+          -e 's/community-3\.8\.1x/community-main/g' \
+          /etc/pacman.conf
+        
+    - name: Cache pacman packages
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: /var/cache/pacman/pkg
+        key: pacman-holo-3.8
+        restore-keys: pacman-holo-3.8
+
+    - name: Install build dependencies
+      shell: bash
+      run: |
+        pacman-key --init
+        pacman -Syu --noconfirm --needed \
+            git meson clang glslang libcap sdl2 vulkan-devel \
+            libx11 libxmu libxcomposite libxrender libxres libxtst libxkbcommon \
+            libdrm libinput wayland-protocols benchmark xorg-xwayland pipewire \
+            lcms2 hwdata seatd xcb-util-wm xcb-util-errors libdisplay-info \
+            cmake libavif libheif aom rav1e libdecor libxdamage luajit libva \
+            libxss sudo pkgconf openssl base-devel patchelf
+        pacman -S --noconfirm --overwrite '*' libpipewire
+
+    # Default cargo locations so rust-cache can pick up the registry + target.
+    - name: Cache cargo + build artifacts
+      uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # 2.9.1
+      with:
+        workspaces: . -> target
+
+    - name: Build skeleton
+      shell: bash
+      env:
+        CARGO_TARGET_DIR: ${{ github.workspace }}/target
+      run: ./dist/scripts/build_dist.sh
+
+    - name: Package tarball
+      shell: bash
+      run: |
+        tar -czf "partydeck-${{ inputs.version }}-SteamOS-x86_64.tar.gz" \
+            -C dist/build_generated/holo release/

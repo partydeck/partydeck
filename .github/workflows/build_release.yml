@@ -13,9 +13,11 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  holo:
     runs-on: ubuntu-latest
     container: ghcr.io/steamdeckhomebrew/holo-toolchain-rust@sha256:818de45e147f35798c66498380b31bd1fe8bf75afdf0a22b027053706836faf1
+    outputs:
+      version: ${{ steps.version.outputs.value }}
     steps:
       # The Holo image ships no git; Install before checkout.
       - name: Install git
@@ -32,15 +34,63 @@ jobs:
 
       - name: Build
         id: build
-        uses: ./.github/actions/build-partydeck
+        uses: ./.github/actions/build-holo
         with:
           version: ${{ steps.version.outputs.value }}
+
+      - name: Upload tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: tarball
+          path: ${{ steps.build.outputs.tarball }}
+
+  appimage:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Install git
+        run: pacman -Sy --noconfirm --needed git
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: echo "value=${{ github.event.inputs.version || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        id: build
+        uses: ./.github/actions/build-appimage
+        with:
+          version: ${{ steps.version.outputs.value }}
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: ${{ steps.build.outputs.appimage }}
+
+  release:
+    needs: [holo, appimage]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: tarball
+
+      - name: Download AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: appimage
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.value }}
+          tag_name: ${{ needs.holo.outputs.version }}
           generate_release_notes: true
           files: |
-            ${{ steps.build.outputs.tarball }}
-            ${{ steps.build.outputs.appimage }}
+            *.tar.gz
+            *.AppImage

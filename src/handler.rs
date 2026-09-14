@@ -232,6 +232,12 @@ impl Handler {
                     return Err("Name cannot be empty".into());
                 }
             }
+            if self.steam_appid.is_none() && self.path_gameroot.is_empty() {
+                return Err("Game root folder isn't set! Locate the game's install folder or set its Steam App.".into());
+            }
+            if self.exec.is_empty() {
+                return Err("Executable isn't set! Locate the executable for the game.".into());
+            }
             if !PATH_PARTY.join("handlers").join(&self.name).exists() {
                 self.path_handler = PATH_PARTY.join("handlers").join(&self.name);
             } else {
@@ -263,7 +269,13 @@ impl Handler {
         if self.name.is_empty() {
             return Err("Name cannot be empty".into());
         }
-
+        if self.steam_appid.is_none() && self.path_gameroot.is_empty() {
+            return Err("Game root folder isn't set! Locate the game's install folder or set its Steam App.".into());
+        }
+        if self.exec.is_empty() {
+            return Err("Executable isn't set! Locate the executable for the game.".into());
+        }
+        
         let mut file = FileDialog::new()
             .set_title("Save file to:")
             .set_directory(&*PATH_HOME)

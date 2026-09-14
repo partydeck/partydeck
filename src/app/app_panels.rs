@@ -102,19 +102,16 @@ impl PartyApp {
         ui.horizontal(|ui| {
             ui.heading("Games");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("➕").clicked() {
+                if ui.button("➕ New").clicked() {
                     self.handler_edit = Some(Handler::default());
                     self.cur_page = MenuPage::EditHandler;
                 }
-                if ui.button("⬇").clicked() {
+                if ui.button("⬇ Import").clicked() {
                     if let Err(e) = import_pd2() {
                         msg("Error", &format!("Error importing PD2: {}", e));
                     } else {
                         self.handlers = scan_handlers();
                     }
-                }
-                if ui.button("🔄").clicked() {
-                    self.handlers = scan_handlers();
                 }
             });
         });

@@ -138,7 +138,7 @@ impl PartyApp {
         };
 
         let header = match h.is_saved_handler() {
-            false => "Add Game",
+            false => "Add Game Wizard",
             true => &format!("Edit Handler: {}", h.display()),
         };
 
@@ -184,6 +184,8 @@ impl PartyApp {
             })
             .unwrap_or(0);
 
+        ui.label(egui::RichText::new("Game info (Required)").strong());
+        
         ui.horizontal(|ui| {
             ui.label("Steam App:");
             egui::ComboBox::from_id_salt("appid")
@@ -210,8 +212,10 @@ impl PartyApp {
 
         if h.steam_appid == None {
             ui.horizontal(|ui| {
-                ui.label("Game root folder:");
-                ui.add_enabled(false, egui::TextEdit::singleline(&mut h.path_gameroot));
+                ui.label("(non-Steam) Game root folder:");
+                if !h.path_gameroot.is_empty() {
+                    ui.add_enabled(false, egui::TextEdit::singleline(&mut h.path_gameroot));
+                }
                 if ui.button("🗁").clicked() {
                     if let Ok(path) = dir_dialog() {
                         h.path_gameroot = path.to_string_lossy().to_string();
@@ -221,8 +225,10 @@ impl PartyApp {
         }
 
         ui.horizontal(|ui| {
-            ui.label("Executable:");
-            ui.add_enabled(false, egui::TextEdit::singleline(&mut h.exec));
+            ui.label("Executable file:");
+            if !h.exec.is_empty() {
+                ui.add_enabled(false, egui::TextEdit::singleline(&mut h.exec));
+            }
             if ui.button("🗁").clicked() {
                 if let Ok(base_path) = h.get_game_rootpath()
                     && let Ok(path) = file_dialog_relative(&PathBuf::from(base_path))
@@ -232,6 +238,10 @@ impl PartyApp {
             }
         });
 
+        ui.separator();
+        
+        ui.label(egui::RichText::new("Properties").strong());
+         
         ui.horizontal(|ui| {
             ui.label("Environment variables:");
             ui.add(egui::TextEdit::singleline(&mut h.env));

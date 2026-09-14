@@ -32,7 +32,7 @@ impl PartyApp {
             ui.hyperlink_to("♥Ko-fi", "https://ko-fi.com/wunner");
             ui.label("supporters:");
         });
-        ui.label("Framilano, Jayden, Marc, Max Rei");
+        ui.label("chungus, Framilano, Jayden, Marc, Max Rei, Thesaurus");
         ui.horizontal_wrapped(|ui| {
             ui.label("Thank you to");
             ui.hyperlink_to(" GitHub", "https://github.com/partydeck/partydeck");
@@ -46,10 +46,13 @@ impl PartyApp {
             ui.hyperlink_to("@felipecrs", "https://github.com/felipecrs");
             ui.hyperlink_to("@framilano", "https://github.com/framilano");
             ui.hyperlink_to("@FrancisBernard34", "https://github.com/FrancisBernard34");
+            ui.hyperlink_to("@jackhric", "https://github.com/jackhric");
             ui.hyperlink_to("@JackTYM", "https://github.com/JackTYM");
             ui.hyperlink_to("@Rudicito", "https://github.com/Rudicito");
             ui.hyperlink_to("@Tau5", "https://github.com/Tau5");
+            ui.hyperlink_to("@turdferguson5000", "https://github.com/turdferguson5000");
             ui.hyperlink_to("@Twig6943", "https://github.com/Twig6943");
+            ui.hyperlink_to("@Xyphyn", "https://github.com/Xyphyn");
         });
     }
 

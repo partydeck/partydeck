@@ -33,6 +33,7 @@ pub enum SettingsPage {
 pub struct PartyApp {
     pub installed_steamapps: Vec<Option<steamlocate::App>>,
     pub needs_update: Arc<AtomicBool>,
+    pub running_in_plasma: bool,
     pub options: PartyConfig,
     pub cur_page: MenuPage,
     pub settings_page: SettingsPage,
@@ -77,6 +78,9 @@ impl PartyApp {
         let mut app = Self {
             installed_steamapps: get_installed_steamapps(),
             needs_update: Arc::new(AtomicBool::new(false)),
+            running_in_plasma: std::env::var("XDG_CURRENT_DESKTOP")
+                .map(|d| d == "KDE")
+                .unwrap_or(false),
             options,
             cur_page,
             settings_page: SettingsPage::General,
@@ -94,6 +98,18 @@ impl PartyApp {
             loading_since: None,
             task: None,
         };
+
+        // SteamOS gaming mode nested kwin will have XDG_CURRENT_DESKTOP=gamescope
+        // but HOMETEST_DESKTOP_SESSION=plasma
+        if std::env::var("HOMETEST_DESKTOP_SESSION")
+            .map(|d| d == "plasma")
+            .unwrap_or(false) {
+            app.running_in_plasma = true;
+        }
+
+        if !app.running_in_plasma {
+            app.options.enable_kwin_script = false;
+        }
 
         if app.options.check_for_updates {
             let needs_update = app.needs_update.clone();

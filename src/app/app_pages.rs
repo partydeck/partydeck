@@ -525,17 +525,20 @@ impl PartyApp {
     }
 
     pub fn display_settings_general(&mut self, ui: &mut Ui) {
-        let check_for_app_updates = ui.checkbox(&mut self.options.check_for_updates, "Check for partydeck updates");
+        let check_for_app_updates = ui.checkbox(&mut self.options.check_for_updates, "Check for updates");
         if check_for_app_updates.hovered() {
-            self.infotext = "DEFAULT: Enabled\n\nWARNING: CONTACTS GITHUB's SERVERS ON EVERY LAUNCH\nMakes partydeck check online for updates durring each launch, and notfies user when avaliable.".to_string();
+            self.infotext = "DEFAULT: Enabled\nWARNING: CONTACTS GITHUB'S SERVERS ON EVERY LAUNCH\n\nMakes partydeck check online for updates durring each launch, and notfies the user when a new version is available.".to_string();
         }
 
-        let enable_kwin_script_check = ui.checkbox(
-            &mut self.options.enable_kwin_script,
-            "(KDE) Automatically resize/reposition instances using KWin script",
-        );
-        if enable_kwin_script_check.hovered() {
-            self.infotext = "DEFAULT: Enabled\n\n Resizes/repositions instances to fit the screen using a KWin script. If using a desktop environment or window manager other than KDE Plasma, uncheck this; note that you will need to manually resize and reposition the windows.".to_string();
+        if self.running_in_plasma {
+            let enable_kwin_script_check = ui.checkbox(
+                &mut self.options.enable_kwin_script,
+                "(KDE) Resize instances to fit the screen",
+            );
+
+            if enable_kwin_script_check.hovered() {
+                self.infotext = "DEFAULT: Enabled\n\nResizes/repositions instances to fit the screen using a KWin script. If using a desktop environment or window manager other than KDE Plasma, uncheck this; note that you will need to manually resize and reposition the windows.".to_string();
+            }
         }
 
         ui.horizontal(|ui| {

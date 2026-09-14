@@ -63,4 +63,4 @@ runs:
       shell: bash
       run: |
         tar -czf "partydeck-${{ inputs.version }}-SteamOS-x86_64.tar.gz" \
-            -C dist/build_generated/holo release/
+            -C dist/build_generated/holo/release .

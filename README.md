@@ -1,8 +1,3 @@
-> [!IMPORTANT]
-> ### Partydeck continuation 
-> Partydeck development has moved to a new github orginization located at https://github.com/partydeck for the project to continue thanks to [@wunnr's](https://github.com/wunnr) help.
-> [@Blahkaey](https://github.com/blahkaey) and [@davidawesome02-backup](https://github.com/davidawesome02-backup) are currently maintaining partydeck and the related handlers.
-> Development efforts will continue, hopefully adding some exciting new features soon. Stay tuned for more updates.
 
 <img src=".github/assets/icon.png" align="left" width="100" height="100">
 
@@ -17,11 +12,18 @@ A split-screen game launcher for Linux/SteamOS
     <img src=".github/assets/gameplay1.png" width="49%" />
 </p>
 
-> [!NOTE]
-> ### New discussion forum!
-> The discussion forum is now open! Join the matrix server for help, to contribute to the development discussion, or just leave feedback!
-> - [Matrix server](https://matrix.to/#/#partydeck:matrix.org)
-> - [More information](https://github.com/partydeck/partydeck/issues/168)
+<p align="center">
+    <a href="https://github.com/partydeck/partydeck/releases">
+        <img src="https://img.shields.io/github/v/release/partydeck/partydeck?style=for-the-badge" alt="Latest Release">
+    </a>
+    <a href="https://matrix.to/#/#partydeck:matrix.org">
+        <img src="https://img.shields.io/matrix/partydeck-general%3Amatrix.org?style=for-the-badge" alt="Matrix Chat">
+    </a>
+    <a href="https://drive.proton.me/urls/D9HBKM18YR#zG8XC8yVy9WL">
+        <img src="https://img.shields.io/badge/DOWNLOAD%20HANDLERS-8A2BE2?style=for-the-badge" alt="Download Handlers">
+    </a>
+</p>
+
 
 > [!NOTE]
 > PartyDeck is in early development, and may contain violations of software best practices and security flaws; use at your own discretion! If you are experienced in software any advice and contributions are greatly appreciated.
@@ -30,12 +32,12 @@ A split-screen game launcher for Linux/SteamOS
 
 - Runs multiple instances of a game at a time and automatically tiles up to 4 game windows per monitor
 - Supports native Linux games as well as Windows games through Proton-GE/UMU Launcher
-- Handler system that tells the launcher how to handle game files, meaning very little manual setup is required
-- Steam multiplayer API is emulated, allowing for multiple instances of Steam games
-- Works with most game controllers without any additional setup, drivers, or third-party software
+- Handler system with little manual setup required for most games
+- Steam multiplayer API is emulated, allowing for multiple instances of Steam games without needing multiple sign-ins
+- Works with most game controllers out-of-the-box
 - Now works with multiple keyboards and mice!
-- Now supports launching the instances across multiple monitors when using the SDL gamescope backend!
-- Uses sandboxing software to mask out controllers so that each game instance only detects the controller assigned to it, preventing input interference
+- Experimental support for displaying instances across multiple monitors
+- Each instance only reads from input devices specifically assigned to that instance
 - Profile support allows each player to have their own persistent save data, settings, and stats for games
 - Works out of the box on SteamOS
 

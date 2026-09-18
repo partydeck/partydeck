@@ -1,3 +1,4 @@
 [submodule "deps/gamescope"]
   path = deps/gamescope
   url = https://github.com/partydeck/gamescope
+	branch = new

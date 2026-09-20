@@ -83,11 +83,6 @@ macro_rules! build_println {
 
 #[allow(dead_code)]
 fn apply_patches(deps_dir: &std::path::Path) {
-    let mut git_apply = std::process::Command::new("git");
-    git_apply.args(["apply", "--allow-empty", &deps_dir.join("deps.patch").to_string_lossy()]);
-    let _ = git_apply.spawn().map_err(|e| {
-        build_println!("Failed to git apply the patches we have for our deps, this is most likely not a real error: {:?} - {:?}", git_apply.get_program().to_string_lossy(), e);
-    });
 }
 
 fn main() {
@@ -131,7 +126,7 @@ fn main() {
 #[cfg(feature = "build_gamescope")]
 fn build_gamescope(deps_dir: &Path, target_dir: &PathBuf) {
     apply_patches(deps_dir); // Apply our own custom fixes for gamescope compilation
-    
+
     use std::process::Command;
 
     let gamescope_dir = deps_dir.join("gamescope");
@@ -197,7 +192,7 @@ fn get_file_hash(file_path: &Path) -> String {
 
     let hash = h.finalize();
     let hex: String = hash.iter().map(|b| format!("{:02x}", b)).collect();
-    
+
     hex
 }
 
@@ -247,7 +242,7 @@ fn fetch_dep(releases_dir: &Path, dep: &Dep) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-#[cfg(feature = "download_deps_latest")] 
+#[cfg(feature = "download_deps_latest")]
 fn find_release_asset(repo: &str, name_contains: &str) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::blocking::Client::new();
     build_println!("Downloading latest release URL for {repo}...");

@@ -139,6 +139,7 @@ fn build_gamescope(deps_dir: &Path, target_dir: &PathBuf) {
             .arg(&build_dir)
             .arg("-Dinput_emulation=disabled")
             .arg("-Dbenchmark=disabled")
+            .arg("-Denable_tests=false")
             .arg("--auto-features=enabled")
             .env("CC", "gcc")
             .env("CXX", "g++")

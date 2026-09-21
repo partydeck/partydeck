@@ -11,6 +11,10 @@ use std::path::{Path, PathBuf};
 
 pub const HANDLER_SPEC_CURRENT_VERSION: u16 = 3;
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum SDL2Override {
     #[default]
@@ -47,8 +51,8 @@ pub struct Handler {
     #[serde(default)]
     pub use_mangohud: bool,
     pub use_goldberg: bool,
-    #[serde(default)]
-    pub enable_hidraw: bool,
+    #[serde(default = "default_true")]
+    pub ps_xinput: bool,
     pub steam_appid: Option<u32>,
 
     pub game_null_paths: Vec<String>,
@@ -77,7 +81,7 @@ impl Default for Handler {
 
             use_mangohud: false,
             use_goldberg: false,
-            enable_hidraw: false,
+            ps_xinput: true,
             steam_appid: None,
 
             game_null_paths: Vec::new(),

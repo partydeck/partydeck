@@ -26,7 +26,7 @@ runs:
           -e 's/-3\.7/-3.8.1x/g' \
           -e 's/community-3\.8\.1x/community-main/g' \
           /etc/pacman.conf
-        
+
     - name: Cache pacman packages
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -44,8 +44,35 @@ runs:
             libdrm libinput wayland-protocols benchmark xorg-xwayland pipewire \
             lcms2 hwdata seatd xcb-util-wm xcb-util-errors libdisplay-info \
             cmake libavif libheif aom rav1e libdecor libxdamage luajit libva \
-            libxss sudo pkgconf openssl base-devel patchelf
+            libxss sudo pkgconf openssl base-devel patchelf ninja libxml2 libffi expat
         pacman -S --noconfirm --overwrite '*' libpipewire
+
+    - name: Build Wayland 1.24 (temporary)
+      shell: bash
+      run: |
+        git clone --depth 1 --branch 1.24.0 \
+          https://gitlab.freedesktop.org/wayland/wayland.git \
+          /tmp/wayland
+
+        meson setup /tmp/wayland/build /tmp/wayland \
+          --prefix=/opt/wayland-1.24 \
+          -Ddocumentation=false
+
+        meson compile -C /tmp/wayland/build
+        meson install -C /tmp/wayland/build
+
+    - name: Build Wayland Protocols 1.47 (temporary)
+      shell: bash
+      run: |
+        git clone --depth 1 --branch 1.47 \
+          https://gitlab.freedesktop.org/wayland/wayland-protocols.git \
+          /tmp/wayland-protocols
+
+        meson setup /tmp/wayland-protocols/build /tmp/wayland-protocols \
+          --prefix=/opt/wayland-protocols-1.47
+
+        meson compile -C /tmp/wayland-protocols/build
+        meson install -C /tmp/wayland-protocols/build
 
     # Default cargo locations so rust-cache can pick up the registry + target.
     - name: Cache cargo + build artifacts
@@ -57,6 +84,12 @@ runs:
       shell: bash
       env:
         CARGO_TARGET_DIR: ${{ github.workspace }}/target
+        PKG_CONFIG_PATH: /opt/wayland-1.24/lib/pkgconfig:/opt/wayland-1.24/share/pkgconfig:/opt/wayland-protocols-1.47/share/pkgconfig
+        CMAKE_PREFIX_PATH: /opt/wayland-1.24:/opt/wayland-protocols-1.47
+        C_INCLUDE_PATH: /opt/wayland-1.24/include:/opt/wayland-protocols-1.47/include
+        CPLUS_INCLUDE_PATH: /opt/wayland-1.24/include:/opt/wayland-protocols-1.47/include
+        LIBRARY_PATH: /opt/wayland-1.24/lib
+        LD_LIBRARY_PATH: /opt/wayland-1.24/lib
       run: ./dist/scripts/build_dist.sh
 
     - name: Package tarball

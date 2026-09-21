@@ -101,6 +101,22 @@ function gamescopeSplitscreen() {
   gamescopeAboveBelow();
 }
 
-workspace.windowAdded.connect(gamescopeSplitscreen);
-workspace.windowRemoved.connect(gamescopeSplitscreen);
-workspace.windowActivated.connect(gamescopeAboveBelow);
+function gamescopeSplitscreenDelayed() {
+  var timer = new QTimer();
+  timer.interval = 100;
+  timer.singleShot = true;
+  timer.timeout.connect(gamescopeSplitscreen);
+  timer.start();
+}
+
+function gamescopeAboveBelownDelayed() {
+  var timer = new QTimer();
+  timer.interval = 100;
+  timer.singleShot = true;
+  timer.timeout.connect(gamescopeSplitscreen);
+  timer.start();
+}
+
+workspace.windowAdded.connect(gamescopeSplitscreenDelayed);
+workspace.windowRemoved.connect(gamescopeSplitscreenDelayed);
+workspace.windowActivated.connect(gamescopeAboveBelownDelayed);

@@ -61,6 +61,20 @@ runs:
         meson compile -C /tmp/wayland/build
         meson install -C /tmp/wayland/build
 
+    - name: Build Wayland Protocols 1.47 (temporary)
+      shell: bash
+      run: |
+        git clone --depth 1 --branch 1.47 \
+          https://gitlab.freedesktop.org/wayland/wayland-protocols.git \
+          /tmp/wayland-protocols
+
+        meson setup /tmp/wayland-protocols/build /tmp/wayland-protocols \
+          --prefix=/opt/wayland-protocols-1.47 \
+          -Ddocumentation=false
+
+        meson compile -C /tmp/wayland-protocols/build
+        meson install -C /tmp/wayland-protocols/build
+
     # Default cargo locations so rust-cache can pick up the registry + target.
     - name: Cache cargo + build artifacts
       uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # 2.9.1
@@ -71,10 +85,10 @@ runs:
       shell: bash
       env:
         CARGO_TARGET_DIR: ${{ github.workspace }}/target
-        PKG_CONFIG_PATH: /opt/wayland-1.24/lib/pkgconfig:/opt/wayland-1.24/share/pkgconfig
-        CMAKE_PREFIX_PATH: /opt/wayland-1.24
-        C_INCLUDE_PATH: /opt/wayland-1.24/include
-        CPLUS_INCLUDE_PATH: /opt/wayland-1.24/include
+        PKG_CONFIG_PATH: /opt/wayland-1.24/lib/pkgconfig:/opt/wayland-1.24/share/pkgconfig:/opt/wayland-protocols-1.47/share/pkgconfig
+        CMAKE_PREFIX_PATH: /opt/wayland-1.24:/opt/wayland-protocols-1.47
+        C_INCLUDE_PATH: /opt/wayland-1.24/include:/opt/wayland-protocols-1.47/include
+        CPLUS_INCLUDE_PATH: /opt/wayland-1.24/include:/opt/wayland-protocols-1.47/include
         LIBRARY_PATH: /opt/wayland-1.24/lib
         LD_LIBRARY_PATH: /opt/wayland-1.24/lib
       run: ./dist/scripts/build_dist.sh

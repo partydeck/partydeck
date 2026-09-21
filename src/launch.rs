@@ -157,9 +157,7 @@ pub fn launch_cmds(
         cmd.current_dir(cwd);
 
         cmd.env("SDL_VIDEODRIVER", "x11");
-        if !win || !h.enable_hidraw {
-            cmd.env("SDL_JOYSTICK_HIDAPI", "0");
-        }
+        cmd.env("SDL_JOYSTICK_HIDAPI", "0");
         cmd.env("ENABLE_GAMESCOPE_WSI", "0");
         if h.sdl2_override != SDL2Override::No {
             let path_sdl = match h.sdl2_override {
@@ -180,10 +178,9 @@ pub fn launch_cmds(
             cmd.env("WINEPREFIX", &path_pfx);
             cmd.env("PROTON_VERB", "run");
             cmd.env("PROTONPATH", protonpath);
-            if h.enable_hidraw {
-                cmd.env("PROTON_ENABLE_HIDRAW", "1");
-            } else {
-                cmd.env("PROTON_DISABLE_HIDRAW", "1");
+            cmd.env("PROTON_ENABLE_HIDRAW", "1");
+            if h.ps_xinput {
+                cmd.env("PROTON_SONY_HIDRAW_XINPUT", "1");
             }
             if cfg.proton_wow64 {
                 cmd.env("PROTON_USE_WOW64", "1");
@@ -262,6 +259,10 @@ pub fn launch_cmds(
             if !dev.enabled
                 || (!instance.devices.contains(&d) && dev.device_type == DeviceType::Gamepad)
             {
+                // hidraw is not under /dev/input, so it still has to be masked rather than omitted.
+                for hp in &dev.hidraw_paths {
+                    cmd.args(["--bind", "/dev/null", hp]);
+                }
                 continue;
             }
             if Path::new(&dev.path).exists() {
@@ -270,21 +271,6 @@ pub fn launch_cmds(
             // Also expose the device's js sibling for games that use the legacy Joystick API
             for js in js_siblings(&dev.path) {
                 cmd.args(["--dev-bind", &js, &js]);
-            }
-        }
-        
-        // hidraw is not under /dev/input, so it still has to be masked rather than omitted.
-        // Wine's winebus reads controllers through it when hidraw is exposed, and leaving it
-        // open leaks input to every instance.
-        if h.enable_hidraw {
-            for (d, dev) in input_devices.iter().enumerate() {
-                if !dev.enabled
-                    || (!instance.devices.contains(&d) && dev.device_type == DeviceType::Gamepad)
-                {
-                    for hp in &dev.hidraw_paths {
-                        cmd.args(["--bind", "/dev/null", hp]);
-                    }
-                }
             }
         }
 

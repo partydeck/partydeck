@@ -71,6 +71,12 @@ runs:
       shell: bash
       env:
         CARGO_TARGET_DIR: ${{ github.workspace }}/target
+        PKG_CONFIG_PATH: /opt/wayland-1.24/lib/pkgconfig:/opt/wayland-1.24/share/pkgconfig
+        CMAKE_PREFIX_PATH: /opt/wayland-1.24
+        C_INCLUDE_PATH: /opt/wayland-1.24/include
+        CPLUS_INCLUDE_PATH: /opt/wayland-1.24/include
+        LIBRARY_PATH: /opt/wayland-1.24/lib
+        LD_LIBRARY_PATH: /opt/wayland-1.24/lib
       run: ./dist/scripts/build_dist.sh
 
     - name: Package tarball

@@ -108,8 +108,8 @@ impl InputDevice {
                 btn = match summary {
                     EventSummary::Key(_, KeyCode::BTN_SOUTH, 1) => Some(PadButton::ABtn),
                     EventSummary::Key(_, KeyCode::BTN_EAST, 1) => Some(PadButton::BBtn),
-                    EventSummary::Key(_, KeyCode::BTN_NORTH, 1) => Some(PadButton::XBtn),
-                    EventSummary::Key(_, KeyCode::BTN_WEST, 1) => Some(PadButton::YBtn),
+                    EventSummary::Key(_, KeyCode::BTN_NORTH, 1) => Some(PadButton::YBtn),
+                    EventSummary::Key(_, KeyCode::BTN_WEST, 1) => Some(PadButton::XBtn),
                     EventSummary::Key(_, KeyCode::BTN_START, 1) => Some(PadButton::StartBtn),
                     EventSummary::Key(_, KeyCode::BTN_SELECT, 1) => Some(PadButton::SelectBtn),
                     EventSummary::AbsoluteAxis(_, AbsoluteAxisCode::ABS_HAT0X, -1) => {

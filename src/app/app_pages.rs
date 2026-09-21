@@ -396,12 +396,7 @@ impl PartyApp {
 
         ui.horizontal(|ui| {
             ui.add(
-                egui::Image::new(egui::include_image!("../../res/BTN_SOUTH.png")).max_height(12.0),
-            );
-            ui.label("[Z]");
-            ui.add(
-                egui::Image::new(egui::include_image!("../../res/MOUSE_RIGHT.png"))
-                    .max_height(12.0),
+                egui::Image::new(egui::include_image!("../../res/BTN_NEWINSTANCE.png")).max_height(16.0),
             );
             let add_text = match self.instance_add_dev {
                 None => "Add New Instance",
@@ -409,42 +404,30 @@ impl PartyApp {
             };
             ui.label(add_text);
 
-            ui.add(egui::Separator::default().vertical());
+            ui.add_space(20.0);
 
             ui.add(
-                egui::Image::new(egui::include_image!("../../res/BTN_EAST.png")).max_height(12.0),
+                egui::Image::new(egui::include_image!("../../res/BTN_DELINSTANCE.png")).max_height(16.0),
             );
-            ui.label("[X]");
             let remove_text = match self.instance_add_dev {
                 None => "Remove",
                 Some(_) => "Cancel",
             };
             ui.label(remove_text);
-
-            ui.add(egui::Separator::default().vertical());
         });
         
         ui.horizontal(|ui| {
             ui.add(
-                egui::Image::new(egui::include_image!("../../res/DPAD_LEFT.png")).max_height(12.0),
+                egui::Image::new(egui::include_image!("../../res/DPAD_LEFTRIGHT.png")).max_height(16.0),
             );
-            ui.add(
-                egui::Image::new(egui::include_image!("../../res/DPAD_RIGHT.png")).max_height(12.0),
-            );
-            ui.label("Change Instance Profile");
+            ui.label("Switch Profile");
             if self.options.gamescope_sdl_backend {
-                ui.add(egui::Separator::default().vertical());
+                ui.add_space(20.0);
                 ui.add(
-                    egui::Image::new(egui::include_image!("../../res/DPAD_UP.png")).max_height(12.0),
+                    egui::Image::new(egui::include_image!("../../res/DPAD_UPDOWN.png")).max_height(16.0),
                 );
-                ui.add(
-                    egui::Image::new(egui::include_image!("../../res/DPAD_DOWN.png"))
-                        .max_height(12.0),
-                );
-                ui.label("Change Instance Monitor");
+                ui.label("Switch Monitor");
             }
-
-            ui.add(egui::Separator::default().vertical());
         });
 
         ui.separator();
@@ -474,7 +457,7 @@ impl PartyApp {
 
                 if self.instance_add_dev == None {
                     let invitebtn = ui.add(
-                        egui::Button::image_and_text(egui::include_image!("../../res/BTN_NORTH.png"), "[A] Invite New Device")
+                        egui::Button::image_and_text(egui::include_image!("../../res/BTN_INVITE.png"), "Invite New Device")
                     );
                     if invitebtn.clicked() {
                         self.instance_add_dev = Some(i);

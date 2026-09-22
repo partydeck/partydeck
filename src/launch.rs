@@ -339,6 +339,7 @@ pub fn launch_cmds(
             ]);
 
             if win {
+                cmd.env("UMU_USE_STEAM", "1");
                 cmd.arg("--bind").args([
                     PATH_RES.join("goldberg/win"),
                     path_pfx.join("drive_c/Program Files (x86)/Steam"),

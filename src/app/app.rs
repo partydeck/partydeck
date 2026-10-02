@@ -473,28 +473,26 @@ impl PartyApp {
     }
 
     pub fn prepare_game_launch(&mut self) {
-        if self.options.gamescope_sdl_backend {
-            set_instance_resolutions_multimonitor(
-                &mut self.instances,
-                &self.monitors,
-                &self.options,
-            );
-        } else {
-            set_instance_resolutions(&mut self.instances, &self.monitors[0], &self.options);
-        }
-        set_instance_names(&mut self.instances, &self.profiles);
-
         let handler = if let Some(h) = self.handler_lite.clone() {
             h
         } else {
             cur_handler!(self).to_owned()
         };
 
+        let _ = save_cfg(&self.options);
+        
+        // Apply config overrides from handler settings to active config
+        let cfg = self.options.with_overrides(&handler.overrides);
+
+        if self.options.gamescope_sdl_backend {
+            set_instance_resolutions_multimonitor(&mut self.instances, &self.monitors, &cfg);
+        } else {
+            set_instance_resolutions(&mut self.instances, &self.monitors[0], &cfg);
+        }
+        set_instance_names(&mut self.instances, &self.profiles);
+
         let instances = self.instances.clone();
         let dev_infos: Vec<DeviceInfo> = self.input_devices.iter().map(|p| p.info()).collect();
-
-        let cfg = self.options.clone();
-        let _ = save_cfg(&cfg);
 
         self.cur_page = MenuPage::Home;
         self.spawn_task(

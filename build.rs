@@ -81,7 +81,7 @@ macro_rules! build_println {
     };
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, unused)]
 fn apply_patches(deps_dir: &std::path::Path) {
 }
 

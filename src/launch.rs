@@ -24,6 +24,16 @@ fn js_siblings(evdev_path: &str) -> Vec<String> {
         .collect()
 }
 
+/// First bwrap in PATH that isn't inside the AppImage, if present.
+fn host_bwrap() -> Option<PathBuf> {
+    // $APPDIR from within AppImage, None otherwise.
+    let appdir: Option<PathBuf> = std::env::var_os("APPDIR").map(PathBuf::from);
+    std::env::split_paths(&std::env::var_os("PATH")?)
+        .filter(|d| appdir.as_ref().is_none_or(|a| !d.starts_with(a)))
+        .map(|d| d.join("bwrap"))
+        .find(|p| p.is_file())
+}
+
 pub fn setup_profiles(
     h: &Handler,
     instances: &Vec<Instance>,
@@ -247,11 +257,28 @@ pub fn launch_cmds(
         }
         cmd.arg("--");
 
+        // The AppImage's bundled bwrap is a wrapper that un-isolates /tmp by re-binding the host /tmp
+        // so we need to explicitly use the host's bwrap when there is one.
+        let is_appimage = std::env::var("APPIMAGE").is_ok();
+        let (bwrap, appdir) = if !is_appimage {
+            (PathBuf::from("bwrap"), None)
+        } else if let Some(host) = host_bwrap() {
+            (host, std::env::var_os("APPDIR"))
+        } else {
+            println!("[partydeck] WARNING: no bwrap found in host PATH; instances will share /tmp");
+            (PathBuf::from("bwrap"), None)
+        };
+
         // Bwrap args
-        cmd.arg("bwrap");
+        cmd.arg(&bwrap);
         cmd.arg("--die-with-parent");
         cmd.args(["--dev-bind", "/", "/"]);
         cmd.args(["--tmpfs", "/tmp"]);
+
+        // Bind AppImage mount from /tmp to keep it visible for bundled binaries like umu-run
+        if let Some(appdir) = &appdir {
+            cmd.arg("--bind").args([appdir, appdir]);
+        }
 
         // Only expose this instance to the input devices specifically associated with it
         cmd.args(["--tmpfs", "/dev/input"]);
@@ -306,7 +333,6 @@ pub fn launch_cmds(
             }
         }
 
-        let is_appimage = std::env::var("APPIMAGE").is_ok();
         if is_appimage {
             // Because we are faking temp directory, this makes the system use the real vulkan directory for games
             // Used here because the env var is set durring bwrap and gamescope process starting so env cant be cleared at this stage.

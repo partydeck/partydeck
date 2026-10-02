@@ -43,20 +43,20 @@ A split-screen game launcher for Linux/SteamOS
 
 ## Installing & Usage
 
-Download the latest release [here](https://github.com/partydeck/partydeck/releases) and extract it into a folder. Download game handlers [here](https://drive.proton.me/urls/D9HBKM18YR#zG8XC8yVy9WL).
+Download the latest release [here](https://github.com/partydeck/partydeck/releases/latest) and extract it into a folder. Download game handlers [here](https://drive.proton.me/urls/D9HBKM18YR#zG8XC8yVy9WL).
 
 ### SteamOS
 
-SteamOS includes all of PartyDeck's dependencies, but you will need to be on SteamOS 3.7.0 or above for the splitscreen script to work.
+PartyDeck is supported on SteamOS 3.8.1 and newer.
 
 If you're in desktop mode, simply run the `partydeck` executable. To use PartyDeck in Gaming Mode, add `GamingModeLauncher.sh` as a shortcut to Steam, and in the settings for that shortcut disable Steam Input.
 
 ### Desktop Linux
 
-PartyDeck's splitscreen tiling script requires KDE Plasma 6.0 and up; if you're on an older version of Plasma or not running Plasma at all, you can run PartyDeck without the script, but then it's up to you to resize and reposition the game windows yourself. You'll also need to install, Gamescope, Bubblewrap, and Fuse-overlayfs using your distro's package manager. Then, simply run the `partydeck` executable to get started. 
+For any non-SteamOS distro, the universal AppImage is the recommended way to run PartyDeck. The app's splitscreen tiling script requires KDE Plasma 6.0 and up; if you're on an older version of Plasma or on another desktop environment/compositor entirely, you can run PartyDeck without the script, but then it's up to you to resize and reposition the game windows yourself. You'll also want to install Bubblewrap (bwrap) from your distro's package manager or you may experience instances not isolating correctly on certain games.
 
 ### Getting Started
-Once in the main menu, click the + button to add a game, or click the button with the down arrow icon to import a PartyDeck Handler package (.pd2). Create profiles if you want to store save data, and have a look through the settings menu.
+There are two ways to add games to PartyDeck: clicking the New button will allow you to create a handler from scratch, and the Import button lets you import a pre-made PartyDeck Handler package (.pd2 file). Pre-made handlers are made for certain games that don't work out-of-the-box or require mods or special configuration to work. Through the profiles menu, you can create profiles that store game save data persistently across sessions.
 
 ## Building
 
@@ -103,7 +103,7 @@ cargo build --release -F download_deps
 
 PartyDeck uses a few software layers to provide a console-like split-screen gaming experience:
 
-- **KWin Session:** This KWin Session displays all running game instances and runs a script to automatically resize and reposition each Gamescope window.
+- **(Optional) KWin Session:** This KWin Session displays all running game instances and runs a script to automatically resize and reposition each Gamescope window.
 - **Gamescope:** Contains each instance of the game to its own window. Also has the neat side effect of receiving controller input even when the window is not currently active, meaning multiple Gamescope instances can all receive input simultaneously
 - **Bubblewrap:** Uses bindings to mask out evdev input files from the instances, so each instance only receives input from one specific controller. Also uses directory binding to give each player their own save data and settings within the games.
 - **Runtime (Steam Runtime/Proton):** If needed, the app can run native Linux games through a Steam Runtime (currently, 1.0 (scout) and 2.0 (soldier) are supported) for better compatibility. Windows games are launched through UMU Launcher.

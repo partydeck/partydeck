@@ -117,7 +117,7 @@ fn main() -> eframe::Result {
 
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
-            .with_inner_size([1080.0, 540.0])
+            .with_inner_size([1080.0, 580.0])
             .with_min_inner_size([640.0, 360.0])
             .with_fullscreen(fullscreen)
             .with_icon(

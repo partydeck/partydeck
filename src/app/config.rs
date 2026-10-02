@@ -71,6 +71,42 @@ impl Default for PartyConfig {
     }
 }
 
+/// Game-behavior settings a handler can override; unset fields keep the app-wide value.
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct ConfigOverrides {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vertical_two_player: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile_unique_dirs: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disable_mount_gamedirs: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gamescope_fix_lowres: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gamescope_force_grab_cursor: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proton_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proton_separate_pfxs: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proton_wow64: Option<bool>,
+}
+
+impl PartyConfig {
+    pub fn with_overrides(&self, o: &ConfigOverrides) -> PartyConfig {
+        let mut cfg = self.clone();
+        cfg.vertical_two_player = o.vertical_two_player.unwrap_or(cfg.vertical_two_player);
+        cfg.profile_unique_dirs = o.profile_unique_dirs.unwrap_or(cfg.profile_unique_dirs);
+        cfg.disable_mount_gamedirs = o.disable_mount_gamedirs.unwrap_or(cfg.disable_mount_gamedirs);
+        cfg.gamescope_fix_lowres = o.gamescope_fix_lowres.unwrap_or(cfg.gamescope_fix_lowres);
+        cfg.gamescope_force_grab_cursor = o.gamescope_force_grab_cursor.unwrap_or(cfg.gamescope_force_grab_cursor);
+        cfg.proton_version = o.proton_version.clone().unwrap_or(cfg.proton_version);
+        cfg.proton_separate_pfxs = o.proton_separate_pfxs.unwrap_or(cfg.proton_separate_pfxs);
+        cfg.proton_wow64 = o.proton_wow64.unwrap_or(cfg.proton_wow64);
+        cfg
+    }
+}
+
 pub fn load_cfg() -> PartyConfig {
     let path = PATH_PARTY.join("settings.json");
 

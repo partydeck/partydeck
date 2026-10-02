@@ -1,3 +1,4 @@
+use crate::app::ConfigOverrides;
 use crate::paths::*;
 use crate::util::*;
 
@@ -56,6 +57,9 @@ pub struct Handler {
     pub steam_appid: Option<u32>,
 
     pub game_null_paths: Vec<String>,
+
+    #[serde(default)]
+    pub overrides: ConfigOverrides,
 }
 
 impl Default for Handler {
@@ -85,6 +89,8 @@ impl Default for Handler {
             steam_appid: None,
 
             game_null_paths: Vec::new(),
+
+            overrides: ConfigOverrides::default(),
         }
     }
 }

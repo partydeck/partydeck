@@ -123,7 +123,7 @@ impl PartyApp {
 
     pub fn display_panel_bottom(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("info_panel")
-            .exact_height(100.0)
+            .exact_height(80.0)
             .show(ctx, |ui| {
                 if self.task.is_some() {
                     ui.disable();

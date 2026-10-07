@@ -294,6 +294,13 @@ impl PartyApp {
             ui.radio_value(&mut h.overrides.profile_unique_dirs, Some(true), "On");
             ui.radio_value(&mut h.overrides.profile_unique_dirs, Some(false), "Off");
         });
+
+        ui.horizontal(|ui| {
+            ui.label("Unique per-profile environments:");
+            ui.radio_value(&mut h.overrides.vertical_two_player, None, "(Default)");
+            ui.radio_value(&mut h.overrides.vertical_two_player, Some(true), "Vertical");
+            ui.radio_value(&mut h.overrides.vertical_two_player, Some(false), "Horizontal");
+        });
         
         if h.spec_ver != HANDLER_SPEC_CURRENT_VERSION {
             if ui.button("Update Handler Specification Version").clicked() {

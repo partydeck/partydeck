@@ -323,9 +323,9 @@ pub fn scan_handlers() -> Vec<Handler> {
     };
 
     for entry_result in entries {
+        // Path::is_dir follows symlinks, so symlinked handler dirs are picked up
         if let Ok(entry) = entry_result
-            && let Ok(file_type) = entry.file_type()
-            && file_type.is_dir()
+            && entry.path().is_dir()
         {
             let json_path = entry.path().join("handler.json");
             if json_path.exists()

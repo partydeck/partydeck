@@ -62,12 +62,8 @@ impl PartyApp {
         ui.horizontal(|ui| {
             ui.heading("Settings");
             ui.selectable_value(&mut self.settings_page, SettingsPage::General, "General");
-            ui.selectable_value(&mut self.settings_page, SettingsPage::Proton, "Proton");
-            ui.selectable_value(
-                &mut self.settings_page,
-                SettingsPage::Gamescope,
-                "Gamescope",
-            );
+            ui.selectable_value(&mut self.settings_page, SettingsPage::Handler, "Handler");
+            ui.selectable_value(&mut self.settings_page, SettingsPage::Gamescope, "Gamescope");
         });
         ui.separator();
 
@@ -77,7 +73,7 @@ impl PartyApp {
             .show(ui, |ui| {
                 match self.settings_page {
                     SettingsPage::General => self.display_settings_general(ui),
-                    SettingsPage::Proton => self.display_settings_proton(ui),
+                    SettingsPage::Handler => self.display_settings_handler(ui),
                     SettingsPage::Gamescope => self.display_settings_gamescope(ui),
                 }
         });
@@ -287,6 +283,24 @@ impl PartyApp {
                 ui.radio_value(&mut h.runtime, "steamrt4".to_string(), "4.0 (steamrt4)");
             });
         }
+
+        ui.separator();
+
+        ui.label(egui::RichText::new("Overrides").strong());
+
+        ui.horizontal(|ui| {
+            ui.label("Unique per-profile environments:");
+            ui.radio_value(&mut h.overrides.profile_unique_dirs, None, "(Default)");
+            ui.radio_value(&mut h.overrides.profile_unique_dirs, Some(true), "On");
+            ui.radio_value(&mut h.overrides.profile_unique_dirs, Some(false), "Off");
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Unique per-profile environments:");
+            ui.radio_value(&mut h.overrides.vertical_two_player, None, "(Default)");
+            ui.radio_value(&mut h.overrides.vertical_two_player, Some(true), "Vertical");
+            ui.radio_value(&mut h.overrides.vertical_two_player, Some(false), "Horizontal");
+        });
         
         if h.spec_ver != HANDLER_SPEC_CURRENT_VERSION {
             if ui.button("Update Handler Specification Version").clicked() {
@@ -529,24 +543,6 @@ impl PartyApp {
         }
 
         ui.horizontal(|ui| {
-            let split_style_label = ui.label("Split style");
-            let r1 = ui.radio_value(
-                &mut self.options.vertical_two_player,
-                false,
-                "Horizontal",
-            );
-            let r2 = ui.radio_value(
-                &mut self.options.vertical_two_player,
-                true,
-                "Vertical",
-            );
-            if split_style_label.hovered() || r1.hovered() || r2.hovered() {
-                self.infotext =
-                    "DEFAULT: Horizontal\n\nChoose whether to split two-player games horizontally (above/below) instead of vertically (side by side).".to_string();
-            }
-        });
-
-        ui.horizontal(|ui| {
             let filter_label = ui.label("Controller filter");
             let r1 = ui.radio_value(
                 &mut self.options.pad_filter_type,
@@ -572,14 +568,6 @@ impl PartyApp {
                 self.input_devices = scan_input_devices(&self.options.pad_filter_type);
             }
         });
-        
-        let profile_unique_dirs_check = ui.checkbox(
-            &mut self.options.profile_unique_dirs,
-            "Unique per-profile environments",
-        );
-        if profile_unique_dirs_check.hovered() {
-            self.infotext = "DEFAULT: Enabled\n\nGives each profile their own data directories. For Windows games, this is the C:\\Users\\steamuser folder, for Linux native games this is the HOME directory. Note that disabling this means that PartyDeck instances may potentially modify your game's actual save data on disk.".to_string();
-        }
 
         let allow_multiple_instances_on_same_device_check = ui.checkbox(
             &mut self.options.allow_multiple_instances_on_same_device,
@@ -588,13 +576,19 @@ impl PartyApp {
         if allow_multiple_instances_on_same_device_check.hovered() {
             self.infotext = "DEFAULT: Disabled\n\nAllow multiple instances on the same device. This can be useful for testing or when one person wants to control multiple instances.".to_string();
         }
-
-        let disable_mount_gamedirs_check = ui.checkbox(
-            &mut self.options.disable_mount_gamedirs,
-            "(Debug) Force run instances from original game directory",
-        );
-        if disable_mount_gamedirs_check.hovered() {
-            self.infotext = "DEFAULT: Disabled\n\nBy default, PartyDeck mounts game directories using fuse-overlayfs to let each instance write to the game's directory without conflicting with each other or affecting the game's installation. In addition, this lets handlers overlay content like mods or config files onto the game directory. Enabling this forces instances to launch from the original game directory without mounting, which will prevent handlers from using built-in mods, but may be useful for diagnosing issues.".to_string();
+        
+        if ui.button("Erase All Proton Prefix Data").clicked() {
+            if yesno(
+                "Erase Prefix?",
+                "This will erase all Proton prefixes used by PartyDeck. This shouldn't erase profile/game-specific data, but exercise caution. Are you sure?",
+            ) && PATH_PARTY.join("prefixes").exists()
+            {
+                if let Err(err) = std::fs::remove_dir_all(PATH_PARTY.join("prefixes")) {
+                    msg("Error", &format!("Couldn't erase pfx data: {}", err));
+                } else {
+                    msg("Data Erased", "Proton prefix data successfully erased.");
+                }
+            }
         }
 
         ui.separator();
@@ -609,16 +603,52 @@ impl PartyApp {
         }
     }
 
-    pub fn display_settings_proton(&mut self, ui: &mut Ui) {
+    pub fn display_settings_handler(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-        let proton_ver_label = ui.label("Proton version");
-        let proton_ver_editbox = ui.add(
-            egui::TextEdit::singleline(&mut self.options.proton_version)
-                .hint_text("GE-Proton"),
+            let split_style_label = ui.label("Split style");
+            let r1 = ui.radio_value(
+                &mut self.options.vertical_two_player,
+                false,
+                "Horizontal",
+            );
+            let r2 = ui.radio_value(
+                &mut self.options.vertical_two_player,
+                true,
+                "Vertical",
+            );
+            if split_style_label.hovered() || r1.hovered() || r2.hovered() {
+                self.infotext =
+                    "DEFAULT: Horizontal\n\nChoose whether to split two-player games horizontally (above/below) instead of vertically (side by side).".to_string();
+            }
+        });
+
+        let profile_unique_dirs_check = ui.checkbox(
+            &mut self.options.profile_unique_dirs,
+            "Unique per-profile environments",
         );
-        if proton_ver_label.hovered() || proton_ver_editbox.hovered() {
-            self.infotext = "DEFAULT: GE-Proton\n\nSpecify a Proton version. This can be a path, e.g. \"/path/to/proton\" or just a name, e.g. \"GE-Proton\" for the latest version of Proton-GE. If left blank, this will default to \"GE-Proton\". If unsure, leave this blank.".to_string();
+        if profile_unique_dirs_check.hovered() {
+            self.infotext = "DEFAULT: Enabled\n\nGives each profile their own data directories. For Windows games, this is the C:\\Users\\steamuser folder, for Linux native games this is the HOME directory. Note that disabling this means that PartyDeck instances may potentially modify your game's actual save data on disk.".to_string();
         }
+
+        let disable_mount_gamedirs_check = ui.checkbox(
+            &mut self.options.disable_mount_gamedirs,
+            "(Debug) Force run instances from original game directory",
+        );
+        if disable_mount_gamedirs_check.hovered() {
+            self.infotext = "DEFAULT: Disabled\n\nBy default, PartyDeck mounts game directories using fuse-overlayfs to let each instance write to the game's directory without conflicting with each other or affecting the game's installation. In addition, this lets handlers overlay content like mods or config files onto the game directory. Enabling this forces instances to launch from the original game directory without mounting, which will prevent handlers from using built-in mods, but may be useful for diagnosing issues.".to_string();
+        }
+
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            let proton_ver_label = ui.label("Proton version");
+            let proton_ver_editbox = ui.add(
+                egui::TextEdit::singleline(&mut self.options.proton_version)
+                    .hint_text("GE-Proton"),
+            );
+            if proton_ver_label.hovered() || proton_ver_editbox.hovered() {
+                self.infotext = "DEFAULT: GE-Proton\n\nSpecify a Proton version. This can be a path, e.g. \"/path/to/proton\" or just a name, e.g. \"GE-Proton\" for the latest version of Proton-GE. If left blank, this will default to \"GE-Proton\". If unsure, leave this blank.".to_string();
+            }
         });
 
         let proton_separate_pfxs_check = ui.checkbox(
@@ -635,20 +665,6 @@ impl PartyApp {
         );
         if proton_wow64_check.hovered() {
             self.infotext = "DEFAULT: Enabled\n\nRuns Proton games in the new Wine WoW64 mode. If unsure, leave this checked.".to_string();
-        }
-        
-        if ui.button("Erase All Proton Prefix Data").clicked() {
-            if yesno(
-                "Erase Prefix?",
-                "This will erase all Proton prefixes used by PartyDeck. This shouldn't erase profile/game-specific data, but exercise caution. Are you sure?",
-            ) && PATH_PARTY.join("prefixes").exists()
-            {
-                if let Err(err) = std::fs::remove_dir_all(PATH_PARTY.join("prefixes")) {
-                    msg("Error", &format!("Couldn't erase pfx data: {}", err));
-                } else {
-                    msg("Data Erased", "Proton prefix data successfully erased.");
-                }
-            }
         }
     }
     

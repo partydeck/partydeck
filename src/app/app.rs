@@ -48,7 +48,8 @@ pub struct PartyApp {
     pub handlers: Vec<Handler>,
     pub selected_handler: usize,
     pub handler_edit: Option<Handler>,
-    pub handler_lite: Option<Handler>,
+    /// Single handler which gets exclusive focus, replacing menus
+    pub handler_exclusive: Option<Handler>,
 
     pub loading_msg: Option<String>, // Base message + elapsed time appended if needed
     pub loading_base_msg: Option<String>, // The message a task started with
@@ -64,14 +65,14 @@ macro_rules! cur_handler {
 }
 
 impl PartyApp {
-    pub fn new(monitors: Vec<Monitor>, handler_lite: Option<Handler>) -> Self {
+    pub fn new(monitors: Vec<Monitor>, handler_exclusive: Option<Handler>) -> Self {
         let options = load_cfg();
         let input_devices = scan_input_devices(&options.pad_filter_type);
-        let handlers = match handler_lite {
+        let handlers = match handler_exclusive {
             Some(_) => Vec::new(),
             None => scan_handlers(),
         };
-        let cur_page = match handler_lite {
+        let cur_page = match handler_exclusive {
             Some(_) => MenuPage::Instances,
             None => MenuPage::Home,
         };
@@ -93,8 +94,8 @@ impl PartyApp {
             handlers,
             selected_handler: 0,
             handler_edit: None,
-            handler_lite,
-            profiles: scan_profiles(false),
+            handler_exclusive,
+            profiles: scan_profiles(),
             loading_msg: None,
             loading_base_msg: None,
             loading_since: None,
@@ -239,12 +240,26 @@ impl PartyApp {
         self.task = Some(std::thread::spawn(f));
     }
 
+    /// Is PartyDeck scoped to a single pre-defined handler?
     pub fn is_lite(&self) -> bool {
-        self.handler_lite.is_some()
+        self.handler_exclusive.is_some()
+    }
+
+    /// Steps an instance's profile through Guest and then each saved profile, wrapping around.
+    fn cycle_profile(&mut self, inst: usize, forward: bool) {
+        let choices: Vec<Option<String>> = std::iter::once(None)
+            .chain(self.profiles.iter().cloned().map(Some))
+            .collect();
+        let n = choices.len();
+        let profile = &mut self.instances[inst].profile;
+        let pos = choices.iter().position(|c| c == profile).unwrap_or(0);
+        let next = if forward { (pos + 1) % n } else { (pos + n - 1) % n };
+        *profile = choices[next].clone();
     }
 
     fn handle_gamepad_gui(&mut self, raw_input: &mut egui::RawInput) {
         let mut key: Option<egui::Key> = None;
+        let is_lite = self.is_lite();
         for pad in &mut self.input_devices {
             if !pad.enabled() {
                 continue;
@@ -252,14 +267,14 @@ impl PartyApp {
             match pad.poll() {
                 Some(PadButton::ABtn) => key = Some(Key::Enter),
                 Some(PadButton::BBtn) => {
-                    if self.handler_lite.is_some() {
+                    if is_lite {
                         self.cur_page = MenuPage::Instances;
                     } else {
                         self.cur_page = MenuPage::Home;
                     }
                 }
                 Some(PadButton::XBtn) => {
-                    self.profiles = scan_profiles(false);
+                    self.profiles = scan_profiles();
                     self.cur_page = MenuPage::Profiles;
                 }
                 Some(PadButton::YBtn) => self.cur_page = MenuPage::Settings,
@@ -267,7 +282,7 @@ impl PartyApp {
                 Some(PadButton::StartBtn) => {
                     if self.cur_page == MenuPage::Game {
                         self.instances.clear();
-                        self.profiles = scan_profiles(true);
+                        self.profiles = scan_profiles();
                         self.instance_add_dev = None;
                         self.cur_page = MenuPage::Instances;
                     }
@@ -333,7 +348,7 @@ impl PartyApp {
                             self.instances.push(Instance {
                                 devices: vec![i],
                                 profname: String::new(),
-                                profselection: 0,
+                                profile: None,
                                 monitor: 0,
                                 width: 0,
                                 height: 0,
@@ -366,20 +381,12 @@ impl PartyApp {
                 // profile with Left/Right and its monitor with Up/Down (no mouse/kbd).
                 Some(PadButton::Right) => {
                     if let Some((inst, _)) = self.find_device_in_instance(i) {
-                        let n = self.profiles.len();
-                        if n > 0 {
-                            let sel = &mut self.instances[inst].profselection;
-                            *sel = (*sel + 1) % n;
-                        }
+                        self.cycle_profile(inst, true);
                     }
                 }
                 Some(PadButton::Left) => {
                     if let Some((inst, _)) = self.find_device_in_instance(i) {
-                        let n = self.profiles.len();
-                        if n > 0 {
-                            let sel = &mut self.instances[inst].profselection;
-                            *sel = (*sel + n - 1) % n; // wrap without underflow
-                        }
+                        self.cycle_profile(inst, false);
                     }
                 }
                 Some(PadButton::Down) => {
@@ -473,14 +480,25 @@ impl PartyApp {
     }
 
     pub fn prepare_game_launch(&mut self) {
-        let handler = if let Some(h) = self.handler_lite.clone() {
+        if self.options.gamescope_sdl_backend {
+            set_instance_resolutions_multimonitor(
+                &mut self.instances,
+                &self.monitors,
+                &self.options,
+            );
+        } else {
+            set_instance_resolutions(&mut self.instances, &self.monitors[0], &self.options);
+        }
+        set_instance_names(&mut self.instances);
+
+        let handler = if let Some(h) = self.handler_exclusive.clone() {
             h
         } else {
             cur_handler!(self).to_owned()
         };
 
         let _ = save_cfg(&self.options);
-        
+
         // Apply config overrides from handler settings to active config
         let cfg = self.options.with_overrides(&handler.overrides);
 
@@ -489,7 +507,7 @@ impl PartyApp {
         } else {
             set_instance_resolutions(&mut self.instances, &self.monitors[0], &cfg);
         }
-        set_instance_names(&mut self.instances, &self.profiles);
+        set_instance_names(&mut self.instances);
 
         let instances = self.instances.clone();
         let dev_infos: Vec<DeviceInfo> = self.input_devices.iter().map(|p| p.info()).collect();

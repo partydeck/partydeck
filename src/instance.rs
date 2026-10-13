@@ -6,7 +6,8 @@ use crate::profiles::GUEST_NAMES;
 pub struct Instance {
     pub devices: Vec<usize>,
     pub profname: String,
-    pub profselection: usize,
+    /// Selected saved profile, or None for a guest
+    pub profile: Option<String>,
     pub monitor: usize,
     pub width: u32,
     pub height: u32,
@@ -81,16 +82,16 @@ pub fn set_instance_resolutions_multimonitor(
     }
 }
 
-pub fn set_instance_names(instances: &mut Vec<Instance>, profiles: &[String]) {
+pub fn set_instance_names(instances: &mut Vec<Instance>) {
     let mut guests = GUEST_NAMES.to_vec();
 
     for instance in instances {
-        if instance.profselection == 0 {
-            let i = fastrand::usize(..guests.len());
-            instance.profname = format!(".{}", guests[i]);
-            guests.swap_remove(i);
-        } else {
-            instance.profname = profiles[instance.profselection].to_owned();
-        }
+        instance.profname = match &instance.profile {
+            Some(name) => name.clone(),
+            None => {
+                let i = fastrand::usize(..guests.len());
+                format!(".{}", guests.swap_remove(i))
+            }
+        };
     }
 }

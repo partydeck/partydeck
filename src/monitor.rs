@@ -127,14 +127,14 @@ pub fn get_monitors_errorless() -> Vec<Monitor> {
         monitors.retain(|m| {
             let keep = !is_phantom(m.name());
             if !keep {
-                println!("[PARTYDECK] Ignoring phantom output '{}' (no display attached)", m.name());
+                eprintln!("[PARTYDECK] Ignoring phantom output '{}' (no display attached)", m.name());
             }
             keep
         });
     }
 
     if monitors.len() == 0 { // Quick patch for those who have no x11 visable monitors, so we dont just panic.
-        println!("[PARTYDECK] Failed to get monitors; using assumed 1920x1080");
+        eprintln!("[PARTYDECK] Failed to get monitors; using assumed 1920x1080");
         monitors.push(Monitor {name: "Partydeck Virtual Monitor".to_string(), width: 1920, height: 1080});
     }
 

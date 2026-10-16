@@ -72,6 +72,16 @@ impl InputDevice {
     pub fn path(&self) -> &str {
         &self.path
     }
+    /// Matches the controller label used by PartyDeck's device panel, without its icon.
+    /// The event number disambiguates multiple devices with the same kernel-reported name.
+    pub fn selector_name(&self) -> String {
+        let event_number = std::path::Path::new(&self.path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| name.strip_prefix("event"))
+            .unwrap_or("?");
+        format!("{} ({})", self.fancyname(), event_number)
+    }
     pub fn enabled(&self) -> bool {
         self.enabled
     }

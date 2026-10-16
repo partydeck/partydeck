@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "handler": "example-game-handler.json",
+  "instances": [
+    {
+      "controllers": "8BitDo Ultimate 2 Wireless Controller (3)",
+      "profile": "Guest",
+      "monitor": "eDP1"
+    },
+    {
+      "controllers": "8BitDo Ultimate 2 Wireless Controller (6)",
+      "profile": "David",
+      "monitor": "eDP1"
+    }
+  ]
+}

@@ -2,6 +2,7 @@ name: Release
 
 on:
   push:
+    branches: ['feat/decky-launch-config']
     tags: ['v*']
   workflow_dispatch:
     inputs:
@@ -30,7 +31,7 @@ jobs:
       - name: Resolve version
         id: version
         shell: bash
-        run: echo "value=${{ github.event.inputs.version || github.ref_name }}" >> "$GITHUB_OUTPUT"
+        run: echo "value=${{ github.event.inputs.version || (github.ref_type == 'branch' && 'v0.8.7-decky-test-20261016' || github.ref_name) }}" >> "$GITHUB_OUTPUT"
 
       - name: Build
         id: build
@@ -58,7 +59,7 @@ jobs:
       - name: Resolve version
         id: version
         shell: bash
-        run: echo "value=${{ github.event.inputs.version || github.ref_name }}" >> "$GITHUB_OUTPUT"
+        run: echo "value=${{ github.event.inputs.version || (github.ref_type == 'branch' && 'v0.8.7-decky-test-20261016' || github.ref_name) }}" >> "$GITHUB_OUTPUT"
 
       - name: Build
         id: build
@@ -90,6 +91,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.holo.outputs.version }}
+          prerelease: ${{ github.ref_type == 'branch' }}
           generate_release_notes: true
           files: |
             *.tar.gz

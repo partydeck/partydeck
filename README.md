@@ -130,3 +130,44 @@ PartyDeck uses a few software layers to provide a console-like split-screen gami
 
 ## Disclaimer
 This software has been created purely for the purposes of academic research. It is not intended to be used to attack other systems. Project maintainers are not responsible or liable for misuse of the software. Use responsibly.
+
+
+## Launching from a Decky plugin
+
+PartyDeck can launch a saved handler directly from a JSON configuration without opening the GUI. The JSON selects a handler and the profile, controller(s), and monitor for each instance.
+
+For example, save this as `session.json` and adjust the handler, controller names, profiles, and monitor names for your installation:
+
+```json
+{
+  "schema_version": 1,
+  "handler": "example-game-handler.json",
+  "instances": [
+    {
+      "controllers": "8BitDo Ultimate 2 Wireless Controller (3)",
+      "profile": "Guest",
+      "monitor": "eDP1"
+    },
+    {
+      "controllers": "8BitDo Ultimate 2 Wireless Controller (6)",
+      "profile": "David",
+      "monitor": "eDP1"
+    }
+  ]
+}
+```
+
+The `controllers` value may be a single selector string or an array of selector strings. Use the `selector` field from `partydeck --list-inputs`; it matches PartyDeck's device panel label, for example `8BitDo Ultimate 2 Wireless Controller (3)`. You may also use the raw device name if it uniquely identifies one gamepad, or the full `/dev/input/eventN` path. Event numbers and paths can change after reconnects or reboots, so have Decky query the device list at launch time. The monitor must match the name reported by PartyDeck. `Guest` creates a temporary, uniquely named profile for that instance.
+
+Useful commands:
+
+- `partydeck --list-inputs` prints gamepad names, paths, and whether the current PartyDeck input filter enables them, as JSON.
+- `partydeck --list-monitors` prints monitor names and resolutions as JSON.
+- `partydeck --list-profiles` prints profile names, including `Guest`, as JSON.
+- `partydeck --list-handlers` prints installed handler names and paths as JSON.
+- `partydeck --launch-config session.json --dry-run` validates the handler, profiles, controllers, and monitor assignments and prints the resolved plan without launching the game.
+- `partydeck --launch-config session.json` launches the configured instances and waits until they exit.
+
+The handler selector may be an installed handler name/folder, a path to a handler directory containing `handler.json`, or a path to a handler JSON file. The launch-config path itself may be absolute or relative to the current working directory.
+
+For a Decky plugin, invoke PartyDeck directly as a subprocess with an argument array rather than constructing a shell command string. Run it as the Steam Deck user with the same graphical-session environment PartyDeck normally uses. If you need PartyDeck to start its own nested KWin session for automatic tiling, use the existing `--kwin` wrapper (for example, `partydeck --kwin --launch-config /absolute/path/session.json`) and ensure the wrapper's graphical environment is available. Controller matching is done against devices visible to that process, and non-primary monitor assignments require PartyDeck's Gamescope SDL backend to be enabled.

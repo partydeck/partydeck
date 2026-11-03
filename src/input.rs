@@ -39,6 +39,10 @@ pub struct DeviceInfo {
     pub hidraw_paths: Vec<String>,
     pub enabled: bool,
     pub device_type: DeviceType,
+    /// Steam Input virtual gamepad; launch.rs relays these as player 1 (see padrelay.rs).
+    pub steam_input: bool,
+    /// Type, kernel name and vendor:product, for the launch log.
+    pub label: String,
 }
 
 pub struct InputDevice {
@@ -104,6 +108,19 @@ impl InputDevice {
             hidraw_paths: hidraw_siblings(self.path()),
             enabled: self.enabled(),
             device_type: self.device_type(),
+            steam_input: self.is_steam_input(),
+            label: format!(
+                "{} '{}' ({:04x}:{:04x})",
+                match self.device_type() {
+                    DeviceType::Gamepad => "gamepad",
+                    DeviceType::Keyboard => "keyboard",
+                    DeviceType::Mouse => "mouse",
+                    DeviceType::Other => "other",
+                },
+                self.name(),
+                self.dev.input_id().vendor(),
+                self.dev.input_id().product()
+            ),
         }
     }
     pub fn poll(&mut self) -> Option<PadButton> {

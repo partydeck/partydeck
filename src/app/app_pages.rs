@@ -571,6 +571,22 @@ impl PartyApp {
             }
         });
 
+        ui.horizontal(|ui| {
+            let rumble_check = ui.checkbox(
+                &mut self.options.steam_input_rumble,
+                "Steam Input controller rumble",
+            );
+            let rumble_hz = ui.add_enabled(
+                self.options.steam_input_rumble,
+                egui::DragValue::new(&mut self.options.steam_input_rumble_hz)
+                    .range(0..=1000)
+                    .suffix(" updates/s"),
+            );
+            if rumble_check.hovered() || rumble_hz.hovered() {
+                self.infotext = "DEFAULT: Disabled, 60 updates/s when enabled\n\nRumble for Steam Input controllers (such as Steam Controllers) in games. Some games send thousands of rumble updates per second, which can make controllers stop responding for a while, so PartyDeck only passes this many per second to Steam (0 = no limit). Leave unchecked if a controller drops out during play.".to_string();
+            }
+        });
+
         let allow_multiple_instances_on_same_device_check = ui.checkbox(
             &mut self.options.allow_multiple_instances_on_same_device,
             "(Debug) Allow multiple instances from one gamepad",

@@ -5,6 +5,7 @@ use crate::app::{PartyConfig, PadFilterType};
 use crate::handler::*;
 use crate::input::*;
 use crate::instance::*;
+use crate::padrelay::PadRelay;
 use crate::paths::*;
 use crate::profiles::{create_profile, create_profile_gamesave};
 use crate::util::*;
@@ -61,7 +62,50 @@ pub fn launch_game(
     instances: &Vec<Instance>,
     cfg: &PartyConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let new_cmds = launch_cmds(h, input_devices, instances, cfg)?;
+    println!("[partydeck] Devices:");
+    for (d, dev) in input_devices.iter().enumerate() {
+        let players: Vec<String> = instances
+            .iter()
+            .enumerate()
+            .filter(|(_, i)| i.devices.contains(&d))
+            .map(|(i, _)| (i + 1).to_string())
+            .collect();
+        println!(
+            "[partydeck] - {} {}{}{}",
+            dev.path,
+            dev.label,
+            if dev.enabled { "" } else { " [disabled]" },
+            if players.is_empty() {
+                String::new()
+            } else {
+                format!(" -> instance {}", players.join(", "))
+            }
+        );
+    }
+
+    // Steam Input pads are numbered by Steam and games take that number as the player slot,
+    // so each assigned pad is relayed through a device that every instance sees as player 1
+    let mut devs = input_devices.to_vec();
+    let mut relays = Vec::new();
+    for (d, dev) in devs.iter_mut().enumerate() {
+        if !dev.steam_input || !dev.enabled || !instances.iter().any(|i| i.devices.contains(&d)) {
+            continue;
+        }
+        let rumble = cfg.steam_input_rumble.then_some(cfg.steam_input_rumble_hz);
+        match PadRelay::new(&dev.path, rumble) {
+            Ok(relay) => {
+                println!("[partydeck] Relaying {} as {}", dev.path, relay.path());
+                dev.path = relay.path().to_string();
+                relays.push(relay);
+            }
+            Err(e) => println!(
+                "[partydeck] Couldn't relay {}, using it directly: {}",
+                dev.path, e
+            ),
+        }
+    }
+
+    let new_cmds = launch_cmds(h, &devs, instances, cfg)?;
     print_launch_cmds(&new_cmds);
 
     if cfg.enable_kwin_script {
@@ -96,6 +140,7 @@ pub fn launch_game(
     for mut handle in handles {
         handle.wait()?;
     }
+    drop(relays);
 
     Ok(())
 }

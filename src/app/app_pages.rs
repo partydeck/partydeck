@@ -561,10 +561,12 @@ impl PartyApp {
             );
 
             if filter_label.hovered() || r1.hovered() || r2.hovered() || r3.hovered() {
-                self.infotext = "DEFAULT: No Steam Input\n\nSelect which controllers to filter out. If you use Steam Input to remap controllers, you may want to select \"Only Steam Input\", but be warned that this option is experimental and is known to break certain Proton games.".to_string();
+                self.infotext = "DEFAULT: No Steam Input\n\nSelect which controllers to filter out; keyboards and mice are never filtered. \"No Steam Input\" ignores Steam Input's virtual controllers. If you use Steam Input to remap controllers, you may want to select \"Only Steam Input\", but be warned that this option is experimental and is known to break certain Proton games. \"All controllers\" uses both, so a controller with Steam Input enabled may be listed twice.\n\nWhile Steam is running, Steam Controllers only work through Steam Input: launch PartyDeck from Steam and select \"All controllers\".".to_string();
             }
 
             if r1.clicked() || r2.clicked() || r3.clicked() {
+                self.instances.clear();
+                self.instance_add_dev = None;
                 self.input_devices = scan_input_devices(&self.options.pad_filter_type);
             }
         });

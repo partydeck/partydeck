@@ -16,6 +16,7 @@ egui_extras = { version = "0.32.1", features = ["file", "image"], default-featur
 evdev = "=0.13.0"
 fastrand = "2.3.0"
 image = { version = "0.25.8", features = ["jpeg", "png"], default-features = false }
+libc = "0.2"
 reqwest = { version = "0.12.15", features = ["blocking", "json"] }
 rfd = "0.15.3"
 serde = "1.0.219"

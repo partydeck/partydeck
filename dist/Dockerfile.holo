@@ -12,7 +12,7 @@ RUN pacman -Sy --noconfirm --needed                                             
         libdrm libinput wayland-protocols benchmark xorg-xwayland pipewire      \
         lcms2 hwdata seatd xcb-util-wm xcb-util-errors libdisplay-info          \
         cmake libavif libheif aom rav1e libdecor libxdamage luajit libva        \
-        libxss wget curl xorg-server-xvfb fuse-overlayfs bubblewrap zsync       \
+        libxss wget curl xorg-server-xvfb bubblewrap zsync       \
         pulseaudio pipewire-audio alsa-plugins libxkbcommon-x11 libvdpau        \
         libvdpau-va-gl sudo pkgconf openssl zip base-devel patchelf             \
     && pacman -S --noconfirm --overwrite '*' libpipewire                        \

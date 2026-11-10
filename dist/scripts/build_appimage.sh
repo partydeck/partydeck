@@ -42,7 +42,7 @@ chmod +x ./get-debloated-pkgs ./quick-sharun
     "$RELEASE_BUNDLE_DIR/bin/gamescope-kbm" \
     "$RELEASE_BUNDLE_DIR/bin/gamescopereaper" \
     "$RELEASE_BUNDLE_DIR/bin/umu-run" \
-    /usr/bin/fuse-overlayfs /usr/bin/bwrap /usr/bin/zip
+    /usr/bin/bwrap /usr/bin/zip
 
 mkdir -p ./AppDir/share/partydeck
 cp -r "$RELEASE_BUNDLE_DIR/res/." ./AppDir/share/partydeck/

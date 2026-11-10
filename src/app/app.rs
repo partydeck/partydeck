@@ -523,15 +523,7 @@ impl PartyApp {
                     msg("Failed mounting game directories", &format!("{err}"));
                     return;
                 }
-                if handler.is_saved_handler()
-                    && !cfg.disable_mount_gamedirs
-                    && cfg.profile_unique_dirs
-                    && let Err(err) = fuse_overlayfs_mount_gamedirs(&handler, &instances)
-                {
-                    println!("[partydeck] Error mounting game directories: {}", err);
-                    msg("Failed mounting game directories", &format!("{err}"));
-                    return;
-                }
+
                 if let Err(err) = launch_game(&handler, &dev_infos, &instances, &cfg) {
                     println!("[partydeck] Error launching instances: {}", err);
                     msg("Launch Error", &format!("{err}"));

@@ -638,7 +638,7 @@ impl PartyApp {
             "(Debug) Force run instances from original game directory",
         );
         if disable_mount_gamedirs_check.hovered() {
-            self.infotext = "DEFAULT: Disabled\n\nBy default, PartyDeck mounts game directories using fuse-overlayfs to let each instance write to the game's directory without conflicting with each other or affecting the game's installation. In addition, this lets handlers overlay content like mods or config files onto the game directory. Enabling this forces instances to launch from the original game directory without mounting, which will prevent handlers from using built-in mods, but may be useful for diagnosing issues.".to_string();
+            self.infotext = "DEFAULT: Disabled\n\nBy default, PartyDeck mounts game directories using bwrap's overlayfs to let each instance write to the game's directory without conflicting with each other or affecting the game's installation. In addition, this lets handlers overlay content like mods or config files onto the game directory. Enabling this forces instances to launch from the original game directory without mounting, which will prevent handlers from using built-in mods, but may be useful for diagnosing issues.".to_string();
         }
 
         ui.separator();

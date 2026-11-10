@@ -125,7 +125,7 @@ impl PartyApp {
                     msg("Error", "Invalid name");
                 }
             }
-            self.profiles = scan_profiles(false);
+            self.profiles = scan_profiles();
         }
     }
 
@@ -364,7 +364,7 @@ impl PartyApp {
                     self.instances.clear();
                     self.input_devices = scan_input_devices(&self.options.pad_filter_type);
                     self.monitors = get_monitors_errorless();
-                    self.profiles = scan_profiles(true);
+                    self.profiles = scan_profiles();
                     self.instance_add_dev = None;
                     self.cur_page = MenuPage::Instances;
                 }
@@ -453,12 +453,15 @@ impl PartyApp {
                 ui.label(format!("{}", i + 1));
 
                 ui.label("👤");
-                egui::ComboBox::from_id_salt(format!("{i}")).show_index(
-                    ui,
-                    &mut instance.profselection,
-                    self.profiles.len(),
-                    |i| self.profiles[i].clone(),
-                );
+
+                egui::ComboBox::from_id_salt(format!("{i}"))
+                    .selected_text(instance.profile.as_deref().unwrap_or("(Guest)"))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut instance.profile, None, "(Guest)");
+                        for name in &self.profiles {
+                            ui.selectable_value(&mut instance.profile, Some(name.clone()), name);
+                        }
+                    });
 
                 if self.options.gamescope_sdl_backend {
                     ui.label("🖵");

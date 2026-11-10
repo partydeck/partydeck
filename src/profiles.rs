@@ -73,9 +73,12 @@ pub fn create_profile_gamesave(name: &str, h: &Handler) -> Result<(), Box<dyn Er
     Ok(())
 }
 
-// Gets a vector of all available profiles.
-// include_guest true for building the profile selector dropdown, false for the profile viewer.
-pub fn scan_profiles(include_guest: bool) -> Vec<String> {
+fn name_is_guest(name: &str) -> bool {
+    return name.starts_with('.')
+}
+
+/// Gets a sorted vector of all saved profiles, excluding temporary guest profiles.
+pub fn scan_profiles() -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
 
     if let Ok(entries) = std::fs::read_dir(PATH_PARTY.join("profiles")) {
@@ -83,6 +86,7 @@ pub fn scan_profiles(include_guest: bool) -> Vec<String> {
             if let Ok(entry) = entry
                 && entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false)
                 && let Some(name) = entry.file_name().to_str()
+                && !name_is_guest(name)
             {
                 out.push(name.to_string());
             }
@@ -90,11 +94,6 @@ pub fn scan_profiles(include_guest: bool) -> Vec<String> {
     }
 
     out.sort();
-
-    if include_guest {
-        out.insert(0, "Guest".to_string());
-    }
-
     out
 }
 
@@ -109,7 +108,7 @@ pub fn remove_guest_profiles() -> Result<(), Box<dyn Error>> {
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
 
-        if name_str.starts_with(".") {
+        if name_is_guest(&name_str) {
             std::fs::remove_dir_all(entry.path())?;
         }
     }

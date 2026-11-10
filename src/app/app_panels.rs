@@ -54,7 +54,7 @@ impl PartyApp {
                     .selected(self.cur_page == MenuPage::Profiles),
             );
             if profilesbtn.clicked() {
-                self.profiles = scan_profiles(false);
+                self.profiles = scan_profiles();
                 self.cur_page = MenuPage::Profiles;
             }
 

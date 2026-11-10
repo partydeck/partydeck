@@ -122,7 +122,7 @@ pub fn launch_cmds(
         return Err("gamescope not found in PATH. Please install gamescope through your distro's package manager.".into());
     }
 
-    if (runtime == "scout" && !PATH_STEAM.join("bin32/steam-runtime/run.sh").exists())
+    if (runtime == "scout" && !PATH_STEAM.join("steam/steamapps/common/SteamLinuxRuntime").exists())
         || (runtime == "soldier"
             && !PATH_STEAM
                 .join("steam/steamapps/common/SteamLinuxRuntime_soldier")
@@ -380,7 +380,7 @@ pub fn launch_cmds(
         } else {
             match runtime {
                 "scout" => {
-                    cmd.arg(PATH_STEAM.join("bin32/steam-runtime/run.sh"));
+                    cmd.arg(PATH_STEAM.join("steam/steamapps/common/SteamLinuxRuntime/steam-runtime/run.sh"));
                 }
                 "soldier" => {
                     cmd.arg(

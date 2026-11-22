@@ -18,6 +18,10 @@ fn default_true() -> bool {
     true
 }
 
+fn default_steam_input_rumble_hz() -> u32 {
+    60
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PartyConfig {
     #[serde(default = "default_true")]
@@ -41,6 +45,10 @@ pub struct PartyConfig {
     #[serde(default)]
     pub pad_filter_type: PadFilterType,
     #[serde(default)]
+    pub steam_input_rumble: bool,
+    #[serde(default = "default_steam_input_rumble_hz")]
+    pub steam_input_rumble_hz: u32,
+    #[serde(default)]
     pub allow_multiple_instances_on_same_device: bool,
     #[serde(default = "default_true")]
     pub profile_unique_dirs: bool,
@@ -63,6 +71,8 @@ impl Default for PartyConfig {
             proton_wow64: true,
             vertical_two_player: false,
             pad_filter_type: PadFilterType::NoSteamInput,
+            steam_input_rumble: false,
+            steam_input_rumble_hz: default_steam_input_rumble_hz(),
             allow_multiple_instances_on_same_device: false,
             profile_unique_dirs: true,
             disable_mount_gamedirs: false,

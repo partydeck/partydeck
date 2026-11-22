@@ -39,6 +39,10 @@ pub struct DeviceInfo {
     pub hidraw_paths: Vec<String>,
     pub enabled: bool,
     pub device_type: DeviceType,
+    /// Steam Input virtual gamepad; launch.rs relays these as player 1 (see padrelay.rs).
+    pub steam_input: bool,
+    /// Type, kernel name and vendor:product, for the launch log.
+    pub label: String,
 }
 
 pub struct InputDevice {
@@ -61,13 +65,30 @@ impl InputDevice {
         }
     }
     pub fn fancyname(&self) -> &str {
-        match self.dev.input_id().vendor() {
-            0x045e => "Xbox Controller",
-            0x054c => "PS Controller",
-            0x057e => "NT Pro Controller",
-            0x28de => "Steam Input",
+        let id = self.dev.input_id();
+        match (id.vendor(), id.product()) {
+            (0x045e, _) => "Xbox Controller",
+            (0x054c, _) => "PS Controller",
+            (0x057e, _) => "NT Pro Controller",
+            _ if self.is_steam_input() => "Steam Input",
+            _ if self.is_steam_controller() => "Steam Controller",
+            (0x28de, 0x1205) => "Steam Deck",
             _ => self.name(),
         }
+    }
+    // Steam Input's virtual gamepad, same check as SDL_IsJoystickSteamVirtualGamepad
+    pub fn is_steam_input(&self) -> bool {
+        let id = self.dev.input_id();
+        id.vendor() == 0x28de && id.product() == 0x11ff
+    }
+    // 2015 wired/Bluetooth/dongle, 2026 wired/BLE/puck/Steam Machine receiver
+    pub fn is_steam_controller(&self) -> bool {
+        let id = self.dev.input_id();
+        id.vendor() == 0x28de
+            && matches!(
+                id.product(),
+                0x1102 | 0x1105 | 0x1106 | 0x1142 | 0x1302..=0x1305
+            )
     }
     pub fn path(&self) -> &str {
         &self.path
@@ -87,6 +108,19 @@ impl InputDevice {
             hidraw_paths: hidraw_siblings(self.path()),
             enabled: self.enabled(),
             device_type: self.device_type(),
+            steam_input: self.is_steam_input(),
+            label: format!(
+                "{} '{}' ({:04x}:{:04x})",
+                match self.device_type() {
+                    DeviceType::Gamepad => "gamepad",
+                    DeviceType::Keyboard => "keyboard",
+                    DeviceType::Mouse => "mouse",
+                    DeviceType::Other => "other",
+                },
+                self.name(),
+                self.dev.input_id().vendor(),
+                self.dev.input_id().product()
+            ),
         }
     }
     pub fn poll(&mut self) -> Option<PadButton> {
@@ -112,6 +146,10 @@ impl InputDevice {
                     EventSummary::Key(_, KeyCode::BTN_WEST, 1) => Some(PadButton::XBtn),
                     EventSummary::Key(_, KeyCode::BTN_START, 1) => Some(PadButton::StartBtn),
                     EventSummary::Key(_, KeyCode::BTN_SELECT, 1) => Some(PadButton::SelectBtn),
+                    EventSummary::Key(_, KeyCode::BTN_DPAD_LEFT, 1) => Some(PadButton::Left),
+                    EventSummary::Key(_, KeyCode::BTN_DPAD_RIGHT, 1) => Some(PadButton::Right),
+                    EventSummary::Key(_, KeyCode::BTN_DPAD_UP, 1) => Some(PadButton::Up),
+                    EventSummary::Key(_, KeyCode::BTN_DPAD_DOWN, 1) => Some(PadButton::Down),
                     EventSummary::AbsoluteAxis(_, AbsoluteAxisCode::ABS_HAT0X, -1) => {
                         Some(PadButton::Left)
                     }
@@ -142,12 +180,6 @@ impl InputDevice {
 pub fn scan_input_devices(filter: &PadFilterType) -> Vec<InputDevice> {
     let mut pads: Vec<InputDevice> = Vec::new();
     for dev in evdev::enumerate() {
-        let enabled = match filter {
-            PadFilterType::All => true,
-            PadFilterType::NoSteamInput => dev.1.input_id().vendor() != 0x28de,
-            PadFilterType::OnlySteamInput => dev.1.input_id().vendor() == 0x28de,
-        };
-
         let device_type = if dev
             .1
             .supported_keys()
@@ -178,13 +210,22 @@ pub fn scan_input_devices(filter: &PadFilterType) -> Vec<InputDevice> {
                 );
                 continue;
             }
-            pads.push(InputDevice {
+            let mut pad = InputDevice {
                 path: dev.0.to_str().unwrap().to_string(),
                 dev: dev.1,
-                enabled,
+                enabled: true,
                 device_type,
                 has_button_held: false,
-            });
+            };
+            // Only gamepads are filtered; keyboards and mice are always usable
+            if device_type == DeviceType::Gamepad {
+                pad.enabled = match filter {
+                    PadFilterType::All => true,
+                    PadFilterType::NoSteamInput => !pad.is_steam_input(),
+                    PadFilterType::OnlySteamInput => pad.is_steam_input(),
+                };
+            }
+            pads.push(pad);
         }
     }
     pads.sort_by_key(|pad| pad.path().to_string());

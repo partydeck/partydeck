@@ -4,6 +4,7 @@ mod input;
 mod instance;
 mod launch;
 mod monitor;
+mod padrelay;
 mod paths;
 mod profiles;
 mod util;

@@ -102,7 +102,7 @@ fn main() {
 
     // cargo puts OUT_DIR a few levels deep, walk up to the profile dir (target/release/)
     let target_dir = Path::new(&std::env::var("OUT_DIR").unwrap())
-        .ancestors().nth(3).unwrap().to_path_buf();
+        .ancestors().nth(4).unwrap().to_path_buf();
 
     #[cfg(feature = "build_gamescope")]
     build_gamescope(&deps_dir, &target_dir);

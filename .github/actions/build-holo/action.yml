@@ -44,8 +44,11 @@ runs:
             libdrm libinput wayland-protocols benchmark xorg-xwayland pipewire \
             lcms2 hwdata seatd xcb-util-wm xcb-util-errors libdisplay-info \
             cmake libavif libheif aom rav1e libdecor libxdamage luajit libva \
-            libxss sudo pkgconf openssl base-devel patchelf ninja libxml2 libffi expat
+            libxss sudo pkgconf openssl base-devel patchelf ninja libxml2 libffi expat \
+            rustup
         pacman -S --noconfirm --overwrite '*' libpipewire
+        rustup install stable
+        rustup default stable
 
     - name: Build Wayland 1.24 (temporary)
       shell: bash
